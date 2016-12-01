@@ -37,9 +37,6 @@
     "type": "git",
     "url": "https://github.com/BazisSoft/vscode-bazis-debug"
   },
-  "bugs": {
-    //"url": "https://github.com/BazisSoft/vscode-bazis-debug/issues"
-  },
   "devDependencies": {
     "@types/es6-collections": "^0.5.29",
     "@types/es6-promise": "^0.0.32",
@@ -201,90 +198,6 @@
               }
             }
           }
-          /*"attach": {
-            "properties": {
-              "processId": {
-                "type": "string",
-                "description": "%bazis.attach.processId.description%",
-                "default": "${command.PickProcess}"
-              },
-              "port": {
-                "type": "number",
-                "description": "%bazis.port.description%",
-                "default": 5858
-              },
-              "address": {
-                "type": "string",
-                "description": "%bazis.address.description%",
-                "default": "localhost"
-              },
-              "timeout": {
-                "type": "number",
-                "description": "%bazis.timeout.description%",
-                "default": 10000
-              },
-              "restart": {
-                "type": "boolean",
-                "description": "%bazis.attach.restart.description%",
-                "default": true
-              },
-              "sourceMaps": {
-                "type": "boolean",
-                "description": "%bazis.sourceMaps.description%",
-                "default": true
-              },
-              "outDir": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "deprecatedMessage": "%outDir.deprecationMessage%",
-                "default": null
-              },
-              "outFiles": {
-                "type": "array",
-                "description": "%outFiles.description%",
-                "items": {
-                  "type": "string"
-                },
-                "default": []
-              },
-              "stopOnEntry": {
-                "type": "boolean",
-                "description": "%bazis.stopOnEntry.description%",
-                "default": true
-              },
-              "localRoot": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "description": "%bazis.attach.localRoot.description%",
-                "default": null
-              },
-              "remoteRoot": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "description": "%bazis.attach.remoteRoot.description%",
-                "default": null
-              },
-              "smartStep": {
-                "type": "boolean",
-                "description": "%smartStep.description%",
-                "default": true
-              },
-              "skipFiles": {
-                "type": "array",
-                "description": "%skipFiles.description%",
-                "items": {
-                  "type": "string"
-                },
-                "default": []
-              }
-            }
-          }*/
         }
       }
     ]
