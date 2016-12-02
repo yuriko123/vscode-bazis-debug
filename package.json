@@ -144,42 +144,10 @@
                 "description": "%bazis.launch.cwd.description%",
                 "default": "${workspaceRoot}"
               },
-              "runtimeExecutable": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "description": "%bazis.launch.runtimeExecutable.description%",
-                "default": null
-              },
-              "runtimeArgs": {
-                "type": "array",
-                "description": "%bazis.launch.runtimeArgs.description%",
-                "items": {
-                  "type": "string"
-                },
-                "default": []
-              },
               "sourceMaps": {
                 "type": "boolean",
                 "description": "%bazis.sourceMaps.description%",
                 "default": true
-              },
-              "outDir": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "deprecatedMessage": "%outDir.deprecationMessage%",
-                "default": null
-              },
-              "outFiles": {
-                "type": "array",
-                "description": "%outFiles.description%",
-                "items": {
-                  "type": "string"
-                },
-                "default": []
               },
               "port": {
                 "type": "number",
@@ -194,7 +162,7 @@
               "timeout": {
                 "type": "number",
                 "description": "%bazis.timeout.description%",
-                "default": 10000
+                "default": 20000
               }
             }
           }
