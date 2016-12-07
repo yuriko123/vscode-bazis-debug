@@ -25,6 +25,7 @@ import * as URL from 'url';
 import * as Path from 'path';
 import * as FS from 'fs';
 import * as nls from 'vscode-nls';
+import * as Registry from 'winreg';
 
 const localize = nls.config(process.env.VSCODE_NLS_CONFIG)();
 
@@ -306,6 +307,7 @@ export class NodeDebugSession extends DebugSession {
 	private static PREVIEW_MAX_STRING_LENGTH = 50;	// truncate long strings for object/array preview
 
 	private static NODE = 'node';
+	private static BazisVersion = 'Bazis10';
 	private static DUMMY_THREAD_ID = 1;
 	private static DUMMY_THREAD_NAME = 'Node';
 	private static FIRST_LINE_OFFSET = 62;
@@ -379,6 +381,7 @@ export class NodeDebugSession extends DebugSession {
 	private _smartStepCount = 0;
 	private _catchRejects = false;
 	private _disableSkipFiles = false;
+	private exePath = '';			//path to Bazis exe file
 
 	public constructor() {
 		super();
@@ -648,8 +651,7 @@ export class NodeDebugSession extends DebugSession {
 			if (this._restartMode && !this._inShutdown) {
 				this.sendEvent(new TerminatedEvent(true));
 			} else {
-				////i think, it terminates process
-				//this.sendEvent(new TerminatedEvent());
+				this.sendEvent(new TerminatedEvent());
 			}
 		}
 	}
@@ -708,15 +710,47 @@ export class NodeDebugSession extends DebugSession {
 		this.sendResponse(response);
 	}
 
+	protected launchRequest(response: DebugProtocol.LaunchResponse, args: LaunchRequestArguments): void {
+		let regKey = new Registry({
+			hive: Registry.HKCU,
+			key:  '\\Software\\BazisSoft\\' + NodeDebugSession.BazisVersion
+			})
+		regKey.values( (err, items) => {
+			if (!err)
+				for (var i=0; i<items.length; i++){
+					if (items[i].name === 'Path'){
+						this.exePath = items[i].value;
+						break;
+					}
+				}
+			this.internalLaunchRequest(response, args);
+		});
+	}
+
 	//---- launch request -----------------------------------------------------------------------------------------------------
 
-	protected launchRequest(response: DebugProtocol.LaunchResponse, args: LaunchRequestArguments): void {
+	private internalLaunchRequest(response: DebugProtocol.LaunchResponse, args: LaunchRequestArguments): void {
 
 		if (this._processCommonArgs(response, args)) {
 			return;
 		}
 
 		this._noDebug = (typeof args.noDebug === 'boolean') && args.noDebug;
+
+		if (typeof args.console === 'string') {
+			switch (args.console) {
+				case 'internalConsole':
+				case 'integratedTerminal':
+				case 'externalTerminal':
+					this._console = args.console;
+					break;
+				default:
+					this.sendErrorResponse(response, 2028, localize('VSND2028', "Unknown console type '{0}'.", args.console));
+					return;
+			}
+		} else if (typeof args.externalConsole === 'boolean' && args.externalConsole) {
+			this._console = 'externalTerminal';
+		}
 
 		const port = args.port || random(3000, 50000);
 
@@ -736,13 +770,43 @@ export class NodeDebugSession extends DebugSession {
 				this.sendErrorResponse(response, 2001, localize('VSND2001', "Cannot find runtime '{0}' on PATH.", '{_runtime}'), { _runtime: NodeDebugSession.NODE });
 				return;
 			}
-			runtimeExecutable = NodeDebugSession.NODE;     // use node from PATH
+
+			if (this.exePath === ''){
+				this.sendErrorResponse(response, 2001, localize('VSND2001', "Cannot find runtime '{0}' on PATH.", '{_runtime}'), { _runtime: NodeDebugSession.BazisVersion })
+				return;
+			} else if (!FS.existsSync(this.exePath)) {
+				this.sendNotExistErrorResponse(response, 'runtimeExecutable', this.exePath);
+				return;
+			}
+
+			runtimeExecutable = this.exePath;
 		}
 
 		let runtimeArgs = args.runtimeArgs || [];
 		const programArgs = args.args || [];
 
 		// special code for 'extensionHost' debugging
+		if (this._adapterID === 'extensionHost') {
+
+			// we always launch in 'debug-brk' mode, but we only show the break event if 'stopOnEntry' attribute is true.
+			let launchArgs = [ runtimeExecutable ];
+			if (!this._noDebug) {
+				launchArgs.push(`--debugBrkPluginHost=${port}`);
+			}
+			launchArgs = launchArgs.concat(runtimeArgs, programArgs);
+
+			this._sendLaunchCommandToConsole(launchArgs);
+
+			const cmd = CP.spawn(runtimeExecutable, launchArgs.slice(1));
+			cmd.on('error', (err) => {
+				this._terminated(`failed to launch extensionHost (${err})`);
+			});
+			this._captureOutput(cmd);
+
+			// we are done!
+			this.sendResponse(response);
+			return;
+		}
 
 
 		let programPath = args.program;
@@ -761,7 +825,7 @@ export class NodeDebugSession extends DebugSession {
 			}
 		}
 
-		runtimeArgs = args.runtimeArgs || [ '--nolazy' ];
+		runtimeArgs = args.runtimeArgs || [];
 
 		if (programPath) {
 			if (NodeDebugSession.isJavaScript(programPath)) {
@@ -782,22 +846,9 @@ export class NodeDebugSession extends DebugSession {
 					});
 					return;
 				}
-			} else if (NodeDebugSession.isJavaScript(programPath)){
+			} else if (NodeDebugSession.isTypeScript(programPath)){
 				if (this._sourceMaps) {
-					// if programPath is a JavaScript file and sourceMaps are enabled, we don't know whether
-					// programPath is the generated file or whether it is the source (and we need source mapping).
-					// Typically this happens if a tool like 'babel' or 'uglify' is used (because they both transpile js to js).
-					// We use the source maps to find a 'source' file for the given js file.
-					this._sourceMaps.MapPathFromSource(programPath).then(generatedPath => {
-						if (generatedPath && generatedPath !== programPath) {
-							// programPath must be source because there seems to be a generated file for it
-							this.log('sm', `launchRequest: program '${programPath}' seems to be the source; launch the generated file '${generatedPath}' instead`);
-							programPath = generatedPath;
-						} else {
-							this.log('sm', `launchRequest: program '${programPath}' seems to be the generated file`);
-						}
-						this.launchRequest2(response, args, programPath, programArgs, <string> runtimeExecutable, runtimeArgs, port);
-					});
+					this.launchRequest2(response, args, programPath, programArgs, <string> runtimeExecutable, runtimeArgs, port);
 					return;
 				}
 			} else {
@@ -827,25 +878,7 @@ export class NodeDebugSession extends DebugSession {
 		let program: string | undefined;
 		let workingDirectory = args.cwd;
 
-		if (workingDirectory) {
-			if (!Path.isAbsolute(workingDirectory)) {
-				this.sendRelativePathErrorResponse(response, 'cwd', workingDirectory);
-				return;
-			}
-			if (!FS.existsSync(workingDirectory)) {
-				this.sendNotExistErrorResponse(response, 'cwd', workingDirectory);
-				return;
-			}
-			// if working dir is given and if the executable is within that folder, we make the executable path relative to the working dir
-			if (programPath) {
-				program = Path.relative(workingDirectory, programPath);
-			}
-		}
-		else if (programPath) {	// should not happen
-			// if no working dir given, we use the direct folder of the executable
-			workingDirectory = Path.dirname(programPath);
-			program = Path.basename(programPath);
-		}
+		program = programPath;
 
 		// we always break on entry (but if user did not request this, we will not stop in the UI).
 		let launchArgs = [ runtimeExecutable ];
@@ -864,8 +897,28 @@ export class NodeDebugSession extends DebugSession {
 		let envVars = args.env;
 
 		// read env from disk and merge into envVars
+		if (args.envFile) {
+			try {
+				const buffer = FS.readFileSync(args.envFile, 'utf8');
+				const env = {};
+				buffer.split('\n').forEach( line => {
+					const r = line.match(/^\s*([\w\.\-]+)\s*=\s*(.*)?\s*$/);
+					if (r !== null) {
+						let value = r[2] || '';
+						if (value.length > 0 && value.charAt(0) === '"' && value.charAt(value.length-1) === '"') {
+							value = value.replace(/\\n/gm, '\n');
+						}
+						env[r[1]] = value.replace(/(^['"]|['"]$)/g, '');
+					}
+				});
+				envVars = PathUtils.extendObject(env, args.env); // launch config env vars overwrite .env vars
+			} catch (e) {
+				this.sendErrorResponse(response, 2029, localize('VSND2029', "Can't load environment variables from file ({0}).", '{_error}'), { _error: e.message });
+				return;
+			}
+		}
 
-		if (this._supportsRunInTerminalRequest) {
+		if (this._supportsRunInTerminalRequest && (this._console === 'externalTerminal' || this._console === 'integratedTerminal')) {
 
 			const termArgs : DebugProtocol.RunInTerminalRequestArguments = {
 				kind: this._console === 'integratedTerminal' ? 'integrated' : 'external',
@@ -1369,13 +1422,8 @@ export class NodeDebugSession extends DebugSession {
 				// stop socket connection (otherwise node.js dies with ECONNRESET on Windows)
 				this._node.stop();
 
-				// kill the whole process tree by starting with the node process
-				let pid = this._nodeProcessId;
-				if (pid > 0) {
-					this._nodeProcessId = -1;
-					this.log('la', 'shutdown: kill debugee and sub-processes');
-					NodeDebugSession.killTree(pid);
-				}
+				//there was code that kills whole process tree
+				//but it was removed because it kill process that was launched outside VSCode;
 			}
 
 			// plan for shutting down this process after a delay of 100ms
@@ -3554,6 +3602,7 @@ export class NodeDebugSession extends DebugSession {
 	}
 
 	//---- private static ---------------------------------------------------------------
+
 	private static isTypeScript(path: string): boolean {
 		const name = Path.basename(path).toLowerCase();
 		if (endsWith(name, '.ts')) {
@@ -3565,7 +3614,7 @@ export class NodeDebugSession extends DebugSession {
 	private static isJavaScript(path: string): boolean {
 
 		const name = Path.basename(path).toLowerCase();
-		if (endsWith(name, '.js') || endsWith(name, '.ts')) {
+		if (endsWith(name, '.js')) {
 			return true;
 		}
 
@@ -3622,29 +3671,6 @@ export class NodeDebugSession extends DebugSession {
 			return s.substring(1, s.length - 1);
 		}
 		return s;
-	}
-
-	private static killTree(processId: number): void {
-
-		if (process.platform === 'win32') {
-			const TASK_KILL = 'C:\\Windows\\System32\\taskkill.exe';
-
-			// when killing a process in Windows its child processes are *not* killed but become root processes.
-			// Therefore we use TASKKILL.EXE
-			try {
-				CP.execSync(`${TASK_KILL} /F /T /PID ${processId}`);
-			}
-			catch (err) {
-			}
-		} else {
-
-			// on linux and OS X we kill all direct and indirect child processes as well
-			try {
-				const cmd = Path.join(__dirname, './terminateProcess.sh');
-				CP.spawnSync(cmd, [ processId.toString() ]);
-			} catch (err) {
-			}
-		}
 	}
 }
 
