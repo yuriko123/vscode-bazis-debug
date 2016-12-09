@@ -877,6 +877,9 @@ export class NodeDebugSession extends DebugSession {
 
 		let program: string | undefined;
 		let workingDirectory = args.cwd;
+		if (!workingDirectory){
+			workingDirectory = Path.dirname(programPath);
+		}
 
 		program = programPath;
 
@@ -1419,6 +1422,7 @@ export class NodeDebugSession extends DebugSession {
 
 			} else {
 
+				this._node.command('disconnect'); // we don't wait for reponse
 				// stop socket connection (otherwise node.js dies with ECONNRESET on Windows)
 				this._node.stop();
 

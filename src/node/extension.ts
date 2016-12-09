@@ -153,7 +153,7 @@ function listProcesses() : Promise<ProcessItem[]> {
 const initialConfigurations = [
 	{
 		type: 'bazis',
-		reques: 'launch',
+		request: 'launch',
 		name: localize('bazis.launch.config.name', "Launch Program"),
 		sourceMaps: true,
 		program: '${file}'
@@ -180,7 +180,7 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 	context.subscriptions.push(pickNodeProcess);
 
-	context.subscriptions.push(vscode.commands.registerCommand('extension.node-debug.provideInitialConfigurations', () => {
+	context.subscriptions.push(vscode.commands.registerCommand('extension.bazis-debug.provideInitialConfigurations', () => {
 		const packageJsonPath = join(vscode.workspace.rootPath, 'package.json');
 		let program = vscode.workspace.textDocuments.some(document => document.languageId === 'typescript') ? 'app.ts' : undefined;
 
@@ -200,14 +200,13 @@ export function activate(context: vscode.ExtensionContext) {
 		if (program) {
 			program = isAbsolute(program) ? program : join('${workspaceRoot}', program);
 			initialConfigurations.forEach(config => {
-				if (config['program']) {
+				if (!config['program']) {
 					config['program'] = program;
 				}
 			});
 		}
 		if (vscode.workspace.textDocuments.some(document => document.languageId === 'typescript' || document.languageId === 'coffeescript')) {
 			initialConfigurations.forEach(config => {
-				config['outFiles'] = [];
 				config['sourceMaps'] = true;
 			});
 		}

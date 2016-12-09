@@ -2,7 +2,7 @@
   "name": "bazis-debug",
   "displayName": "Bazis Debug",
   "version": "1.0.0",
-  "publisher": "Let0s",
+  "publisher": "BazisSoft",
   "description": "%extension.description%",
   "icon": "images/node-debug-icon.svg",
   "categories": [
@@ -68,7 +68,7 @@
   "main": "./out/node/extension",
   "activationEvents": [
     "onCommand:extension.pickNodeProcess",
-    "onCommand:extension.node-debug.provideInitialConfigurations"
+    "onCommand:extension.bazis-debug.provideInitialConfigurations"
   ],
   "contributes": {
     "breakpoints": [
@@ -92,7 +92,7 @@
           "PickProcess": "extension.pickNodeProcess"
         },
         "aiKey": "AIF-d9b70cd4-b9f9-4d70-929b-a071c400b217",
-        "initialConfigurations": "extension.node-debug.provideInitialConfigurations",
+        "initialConfigurations": "extension.bazis-debug.provideInitialConfigurations",
         "configurationSnippets": [
           {
             "label": "%bazis.snippet.launch.label%",
@@ -104,22 +104,11 @@
               "program": "\\${file}",
               "cwd": "\\${workspaceRoot}"
             }
-          },
-          {
-            "label": "%bazis.snippet.attach.label%",
-            "description": "%bazis.snippet.attach.description%",
-            "body": {
-              "type": "bazis",
-              "request": "attach",
-              "name": "${2:Attach to Port}",
-              "port": 5858
-            }
           }
         ],
         "configurationAttributes": {
           "launch": {
             "required": [
-              "cwd",
               "program"
             ],
             "properties": {
@@ -163,7 +152,7 @@
               "timeout": {
                 "type": "number",
                 "description": "%bazis.timeout.description%",
-                "default": 20000
+                "default": 10000
               }
             }
           }
