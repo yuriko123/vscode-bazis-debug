@@ -58,6 +58,33 @@ export function activate(context: vscode.ExtensionContext) {
 		const configurationsMassaged = JSON.stringify(initialConfigurations, null, '\t').replace(',\n\t\t"processId', '\n\t\t//"processId')
 			.split('\n').map(line => '\t' + line).join('\n').trim();
 
+		//add d.ts files to folder
+		try{
+			let typesPath = join(vscode.workspace.rootPath, '/node_modules/@types/');
+			//create directories
+			//TODO: find better way, if it exists
+			if (!fs.existsSync(join(vscode.workspace.rootPath, '/node_modules'))){
+				fs.mkdirSync(join(vscode.workspace.rootPath, '/node_modules'));
+			};
+			if (!fs.existsSync(typesPath)){
+				fs.mkdirSync(typesPath);
+			};
+			if (!fs.existsSync(join(typesPath, '/bazis'))){
+				fs.mkdirSync(join(typesPath, '/bazis'));
+			};
+			if (!fs.existsSync(join(typesPath, '/node'))){
+				fs.mkdirSync(join(typesPath, '/node'));
+			};
+			fs.writeFileSync(join(typesPath, '/bazis/index.d.ts'), fs.readFileSync(join(context.extensionPath,'/bazis.d.ts')));
+			if (!fs.existsSync(join(typesPath, '/node/index.d.ts'))){
+				fs.writeFileSync(join(typesPath, '/node/index.d.ts'), fs.readFileSync(join(context.extensionPath, '/node.d.ts')));
+			}
+		}
+		catch(e){
+			//write error to log
+			fs.appendFileSync(join(vscode.workspace.rootPath, 'error.log'), 'd.ts copy error:\n\r' + e.message + '\n\r' + e.stack);
+		}
+
 		return [
 			'{',
 			'\t// Use IntelliSense to learn about possible Node.js debug attributes.',
