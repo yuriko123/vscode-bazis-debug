@@ -31,7 +31,8 @@
     "vscode-nls": "^2.0.1",
     "request-light": "^0.1.0",
     "glob": "7.1.1",
-    "minimatch": "3.0.3"
+    "minimatch": "3.0.3",
+    "winreg": "^1.2.2"
   },
   "repository": {
     "type": "git",
@@ -62,12 +63,10 @@
     "vsce": "^1.17.0",
     "vscode": "^1.0.3",
     "vscode-debugadapter-testsupport": "^1.14.0",
-    "vscode-nls-dev": "^2.0.1",
-    "winreg": "^1.2.2"
+    "vscode-nls-dev": "^2.0.1"
   },
   "main": "./out/node/extension",
   "activationEvents": [
-    "onCommand:extension.pickNodeProcess",
     "onCommand:extension.bazis-debug.provideInitialConfigurations"
   ],
   "contributes": {
@@ -88,9 +87,6 @@
         "label": "%bazis.label%",
         "program": "./out/node/nodeDebug.js",
         "runtime": "node",
-        "variables": {
-          "PickProcess": "extension.pickNodeProcess"
-        },
         "aiKey": "AIF-d9b70cd4-b9f9-4d70-929b-a071c400b217",
         "initialConfigurations": "extension.bazis-debug.provideInitialConfigurations",
         "configurationSnippets": [
@@ -101,8 +97,7 @@
               "type": "bazis",
               "request": "launch",
               "name": "${2:Launch Program}",
-              "program": "\\${file}",
-              "cwd": "\\${workspaceRoot}"
+              "program": "\\${file}"
             }
           }
         ],
