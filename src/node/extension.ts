@@ -15,7 +15,7 @@ const initialConfigurations = [
 	{
 		type: 'bazis',
 		request: 'launch',
-		name: localize('bazis.launch.config.name', "Launch Program"),
+		name: localize('bazis.launch.config.name', "Запустить"),
 		sourceMaps: true,
 		program: '${file}'
 	}
