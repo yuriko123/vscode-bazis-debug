@@ -1,10 +1,9 @@
 {
   "name": "bazis-debug",
-  "displayName": "Bazis Debug",
+  "displayName": "Базис-Отладчик",
   "version": "0.1.0",
   "publisher": "BazisSoft",
   "description": "%extension.description%",
-  "icon": "images/node-debug-icon.svg",
   "categories": [
     "Debuggers"
   ],
@@ -123,11 +122,6 @@
                   "type": "string"
                 },
                 "default": []
-              },
-              "cwd": {
-                "type": "string",
-                "description": "%bazis.launch.cwd.description%",
-                "default": "${workspaceRoot}"
               },
               "sourceMaps": {
                 "type": "boolean",
