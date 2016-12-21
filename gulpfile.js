@@ -118,9 +118,9 @@ gulp.task('internal-nls-compile', function() {
 });
 
 gulp.task('add-i18n', function() {
-	return gulp.src(['package.nls.json'])
+	/*return gulp.src(['package.nls.json'])
 		.pipe(nls.createAdditionalLanguageFiles(nls.coreLanguages, 'i18n'))
-		.pipe(gulp.dest('.'));
+		.pipe(gulp.dest('.'));*/
 });
 
 gulp.task('vsce-publish', function(cb) {
