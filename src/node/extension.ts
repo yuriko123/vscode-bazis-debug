@@ -81,8 +81,7 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 		}
 		catch(e){
-			//write error to log
-			fs.appendFileSync(join(vscode.workspace.rootPath, 'error.log'), 'd.ts copy error:\n\r' + e.message + '\n\r' + e.stack);
+			//silently ignore
 		}
 
 		return [

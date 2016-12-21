@@ -772,7 +772,7 @@ export class NodeDebugSession extends DebugSession {
 			}
 
 			if (this.exePath === ''){
-				this.sendErrorResponse(response, 2001, localize('VSND2001', "Cannot find runtime '{0}' on PATH.", '{_runtime}'), { _runtime: NodeDebugSession.BazisVersion })
+				this.sendErrorResponse(response, 2001, localize('VSND2001', "Cannot find runtime '{0}' on Registry.", '{_runtime}'), { _runtime: NodeDebugSession.BazisVersion })
 				return;
 			} else if (!FS.existsSync(this.exePath)) {
 				this.sendNotExistErrorResponse(response, 'runtimeExecutable', this.exePath);
@@ -876,16 +876,13 @@ export class NodeDebugSession extends DebugSession {
 	private launchRequest2(response: DebugProtocol.LaunchResponse, args: LaunchRequestArguments, programPath: string, programArgs: string[], runtimeExecutable: string, runtimeArgs: string[], port: number): void {
 
 		let program: string | undefined;
-		let workingDirectory = args.cwd;
-		if (!workingDirectory){
-			workingDirectory = Path.dirname(programPath);
-		}
+		let workingDirectory = Path.dirname(programPath);
 
 		program = programPath;
 
 		// we always break on entry (but if user did not request this, we will not stop in the UI).
 		let launchArgs = [ runtimeExecutable ];
-		if (! this._noDebug && !args.port) {		// if a port is given, we assume that the '--debug-brk' option is specified elsewhere
+		if (! this._noDebug) {
 			launchArgs.push(`--debug-brk=${port}`);
 		}
 		launchArgs = launchArgs.concat(runtimeArgs);
