@@ -785,30 +785,6 @@ export class NodeDebugSession extends DebugSession {
 		let runtimeArgs = args.runtimeArgs || [];
 		const programArgs = args.args || [];
 
-		// special code for 'extensionHost' debugging
-		if (this._adapterID === 'extensionHost') {
-
-			// we always launch in 'debug-brk' mode, but we only show the break event if 'stopOnEntry' attribute is true.
-			let launchArgs = [ runtimeExecutable ];
-			if (!this._noDebug) {
-				launchArgs.push(`--debugBrkPluginHost=${port}`);
-			}
-			launchArgs = launchArgs.concat(runtimeArgs, programArgs);
-
-			this._sendLaunchCommandToConsole(launchArgs);
-
-			const cmd = CP.spawn(runtimeExecutable, launchArgs.slice(1));
-			cmd.on('error', (err) => {
-				this._terminated(`failed to launch extensionHost (${err})`);
-			});
-			this._captureOutput(cmd);
-
-			// we are done!
-			this.sendResponse(response);
-			return;
-		}
-
-
 		let programPath = args.program;
 		if (programPath) {
 			if (!Path.isAbsolute(programPath)) {
@@ -884,6 +860,9 @@ export class NodeDebugSession extends DebugSession {
 		let launchArgs = [ runtimeExecutable ];
 		if (! this._noDebug) {
 			launchArgs.push(`--debug-brk=${port}`);
+		}
+		else{
+			launchArgs.push('--eval');
 		}
 		launchArgs = launchArgs.concat(runtimeArgs);
 		if (program) {

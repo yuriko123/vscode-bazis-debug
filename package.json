@@ -1,7 +1,7 @@
 {
   "name": "bazis-debug",
   "displayName": "Базис-Отладчик",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "publisher": "BazisSoft",
   "icon": "images/bazis-logo.svg",
   "description": "%extension.description%",
@@ -109,7 +109,8 @@
             "properties": {
               "program": {
                 "type": "string",
-                "description": "%bazis.launch.program.description%"
+                "description": "%bazis.launch.program.description%",
+                "default": "${file}"
               },
               "stopOnEntry": {
                 "type": "boolean",
@@ -143,6 +144,11 @@
                 "type": "number",
                 "description": "%bazis.timeout.description%",
                 "default": 10000
+              },
+              "noDebug":{
+                "type": "boolean",
+                "description": "%bazis.noDebug.description%",
+                "default": false
               }
             }
           }

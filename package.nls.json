@@ -9,6 +9,7 @@
 	"bazis.stopOnEntry.description": "Автоматически остановить программу после запуска.",
 	"bazis.port.description": "Порт отладки для присоединения. Значение по умолчанию — 5858.",
 	"bazis.address.description": "TCP/IP-адрес порта отладки. Значение по умолчанию — \"localhost\".",
+	"bazis.noDebug.description": "Запуск скрипта без отладки. Значение по умолчанию — false.",
 	"bazis.timeout.description": "Повторять в течение этого количества миллисекунд для подключения к Node.js. Значение по умолчанию — 10 000 мс.",
 
 	"bazis.launch.program.description": "Абсолютный путь к программе.",
