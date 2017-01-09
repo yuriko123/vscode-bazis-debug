@@ -1,7 +1,7 @@
 {
   "name": "bazis-debug",
   "displayName": "Базис-Отладчик",
-  "version": "0.2.0",
+  "version": "0.3.1",
   "publisher": "BazisSoft",
   "icon": "images/bazis-logo.svg",
   "description": "%extension.description%",
@@ -67,9 +67,16 @@
   },
   "main": "./out/node/extension",
   "activationEvents": [
-    "onCommand:extension.bazis-debug.provideInitialConfigurations"
+    "onCommand:bazis-debug.provideInitialConfigurations",
+    "*"
   ],
   "contributes": {
+    "commands":[
+      {
+        "command": "bazis-debug.addDefintionFiles",
+        "title": "Добавить файлы определений *.d.ts для Базис-Мебельщик"
+      }
+    ],
     "breakpoints": [
       {
         "language": "javascript"
@@ -88,7 +95,7 @@
         "program": "./out/node/nodeDebug.js",
         "runtime": "node",
         "aiKey": "AIF-d9b70cd4-b9f9-4d70-929b-a071c400b217",
-        "initialConfigurations": "extension.bazis-debug.provideInitialConfigurations",
+        "initialConfigurations": "bazis-debug.provideInitialConfigurations",
         "configurationSnippets": [
           {
             "label": "%bazis.snippet.launch.label%",

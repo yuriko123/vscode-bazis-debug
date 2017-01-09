@@ -11,6 +11,39 @@ import * as fs from 'fs';
 
 const localize = nls.config(process.env.VSCODE_NLS_CONFIG)();
 
+function addDefintionFiles(){
+	let extensionInfo = vscode.extensions.getExtension('BazisSoft.bazis-debug');
+	if (!extensionInfo){
+		return;
+	}
+	let extensionPath = extensionInfo.extensionPath;
+	//add d.ts files to folder
+	try{
+		let typesPath = join(vscode.workspace.rootPath, '/node_modules/@types/');
+		//create directories
+		//TODO: find better way, if it exists
+		if (!fs.existsSync(join(vscode.workspace.rootPath, '/node_modules'))){
+			fs.mkdirSync(join(vscode.workspace.rootPath, '/node_modules'));
+		};
+		if (!fs.existsSync(typesPath)){
+			fs.mkdirSync(typesPath);
+		};
+		if (!fs.existsSync(join(typesPath, '/bazis'))){
+			fs.mkdirSync(join(typesPath, '/bazis'));
+		};
+		if (!fs.existsSync(join(typesPath, '/node'))){
+			fs.mkdirSync(join(typesPath, '/node'));
+		};
+		fs.writeFileSync(join(typesPath, '/bazis/index.d.ts'), fs.readFileSync(join(extensionPath,'/bazis.d.ts')));
+		if (!fs.existsSync(join(typesPath, '/node/index.d.ts'))){
+			fs.writeFileSync(join(typesPath, '/node/index.d.ts'), fs.readFileSync(join(extensionPath, '/node.d.ts')));
+		}
+	}
+	catch(e){
+		//silently ignore
+	}
+}
+
 const initialConfigurations = [
 	{
 		type: 'bazis',
@@ -22,8 +55,11 @@ const initialConfigurations = [
 ];
 
 export function activate(context: vscode.ExtensionContext) {
+	vscode.commands.registerCommand('bazis-debug.addDefintionFiles', () => {
+		addDefintionFiles();
+	});
 
-	context.subscriptions.push(vscode.commands.registerCommand('extension.bazis-debug.provideInitialConfigurations', () => {
+	context.subscriptions.push(vscode.commands.registerCommand('bazis-debug.provideInitialConfigurations', () => {
 		const packageJsonPath = join(vscode.workspace.rootPath, 'package.json');
 		let program = vscode.workspace.textDocuments.some(document => document.languageId === 'typescript') ? 'app.ts' : undefined;
 
@@ -58,31 +94,7 @@ export function activate(context: vscode.ExtensionContext) {
 		const configurationsMassaged = JSON.stringify(initialConfigurations, null, '\t').replace(',\n\t\t"processId', '\n\t\t//"processId')
 			.split('\n').map(line => '\t' + line).join('\n').trim();
 
-		//add d.ts files to folder
-		try{
-			let typesPath = join(vscode.workspace.rootPath, '/node_modules/@types/');
-			//create directories
-			//TODO: find better way, if it exists
-			if (!fs.existsSync(join(vscode.workspace.rootPath, '/node_modules'))){
-				fs.mkdirSync(join(vscode.workspace.rootPath, '/node_modules'));
-			};
-			if (!fs.existsSync(typesPath)){
-				fs.mkdirSync(typesPath);
-			};
-			if (!fs.existsSync(join(typesPath, '/bazis'))){
-				fs.mkdirSync(join(typesPath, '/bazis'));
-			};
-			if (!fs.existsSync(join(typesPath, '/node'))){
-				fs.mkdirSync(join(typesPath, '/node'));
-			};
-			fs.writeFileSync(join(typesPath, '/bazis/index.d.ts'), fs.readFileSync(join(context.extensionPath,'/bazis.d.ts')));
-			if (!fs.existsSync(join(typesPath, '/node/index.d.ts'))){
-				fs.writeFileSync(join(typesPath, '/node/index.d.ts'), fs.readFileSync(join(context.extensionPath, '/node.d.ts')));
-			}
-		}
-		catch(e){
-			//silently ignore
-		}
+		addDefintionFiles();
 
 		return [
 			'{',
