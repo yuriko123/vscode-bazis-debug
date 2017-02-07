@@ -69,6 +69,13 @@ declare class IDispatch {
 
 }
 
+declare class ProjectFile{
+    Items: Array<ProjectFile>;
+    Count: number;
+    Name: string;
+    FullName: string;
+}
+
 declare class Model3D extends List3D {
     /**
      * Размер модели
@@ -107,7 +114,7 @@ declare class Model3D extends List3D {
 
 declare class Action3D{
     /**
-     * Если someBool, то запрещены любые функции взаимодействия с пользователем
+     * Если false, то запрещены любые функции взаимодействия с пользователем
      */
     Interactive: Boolean;
     /**
@@ -236,7 +243,22 @@ declare class Action3D{
      * Набор редактируемых свойств
      */
     Properties: ScriptProperty;
-
+    /**
+     * Загрузить модель из файла
+     */
+    LoadModel(filename: string): boolean;
+    /**
+     * Сохранить модель в файл
+     */
+    SaveModel(filename: string);
+    /**
+     * Загрузить проект из файла
+     */
+    LoadProject(filename: string): ProjectFile;
+    /**
+     * Сохранить проект в файл
+     */
+    SaveProject(filename: string, project: ProjectFile);
 }
 
 declare class ScriptMenu{
@@ -1470,6 +1492,10 @@ declare class Object3 extends Object{
      */
     FindConnectedFasteners(Obj: Object3): Array<Object3>;
     /**
+     * Получить список объектов, соединяемых этим крепежом
+     */
+    FindFastenedObjects(): Array<Object3>;
+    /**
      * Количество пользовательских свойств
      */
     UserPropCount: Number;
@@ -2052,9 +2078,9 @@ declare class Contour2D{
     IsContourRectangle(): Boolean;
     /**
      * Упорядочить элеметны контура в одном направлении
-     * @param someBoolean
+     * @param closet
      */
-    OrderContours(someBoolean): Boolean;
+    OrderContours(closet): Boolean;
 
 }
 
