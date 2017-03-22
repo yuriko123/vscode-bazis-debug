@@ -5,17 +5,21 @@ declare class System {
      * @param str сообщение 
      */
     log(str: string);
+    /**
+     * Подключить указанный файл
+     */
+    include(filename: string);
     /** 
      * Возвращает true, если файл существует
      * @deprecated используйте fs.existsSync
      * @param filename путь к файлу
      */
-    fileExists(filename: string): Boolean;
+    fileExists(filename: string): boolean;
     /**
      * Открыть диалог выбора файла
      * @param extension расширение файла
      */
-    askFileName(extension: string): String;
+    askFileName(extension: string): string;
     /**
      * Записать текст в файл
      * @deprecated используйте fs.writeFileSync
@@ -33,12 +37,12 @@ declare class System {
      * Считать текст из файла
      * @param filename Имя файла
      */
-    readTextFile(filename: string): String;
+    readTextFile(filename: string): string;
     /**
      * Считать текст из файла с запросом выбора файла
      * @param extension Расширение файла
      */
-    askReadTextFile(extension: string): String;
+    askReadTextFile(extension: string): string;
     /**
      * Выполнить зашифрованный код
      * @param str код скрипта
@@ -48,7 +52,7 @@ declare class System {
      * Выполнить внешнюю программу
      * @param str код программы
      */
-    exec(str: string): Boolean;
+    exec(str: string): boolean;
     /**
      * Задерживает выполнение программы на указанное время
      * @param ms время (в миллисекундах)
@@ -57,7 +61,7 @@ declare class System {
     /**
      * Текущая версия Bazis API
      */
-    apiVersion: Number;
+    apiVersion: number;
 
 }
 
@@ -65,7 +69,7 @@ declare class IDispatch {
     /**
      * Информациях о методах и свойствах объекта
      */
-    GetTypeInfo: String;
+    GetTypeInfo: string;
 
 }
 
@@ -96,7 +100,7 @@ declare class Model3D extends List3D {
     /**
      * Количество выделенных элементов
      */
-    SelectionCount: Number;
+    SelectionCount: number;
     /**
      * Список выделенных элементов
      */
@@ -104,7 +108,7 @@ declare class Model3D extends List3D {
     /**
      * Количество объектов в модели
      */
-    Count: Number;
+    Count: number;
     /**
      * Список объектов модели
      */
@@ -116,7 +120,7 @@ declare class Action3D{
     /**
      * Если false, то запрещены любые функции взаимодействия с пользователем
      */
-    Interactive: Boolean;
+    Interactive: boolean;
     /**
      * Продолжить вызывать прерывания по завершению основного тела скрипта, не завершая команды
      */
@@ -141,11 +145,11 @@ declare class Action3D{
     /**
      * Позиция курсора
      */
-    MouseX: Number;
+    MouseX: number;
     /**
      * Позиция курсора
      */
-    MouseY: Number;
+    MouseY: number;
     /**
      * Текущая позиция маркера
      */
@@ -165,23 +169,23 @@ declare class Action3D{
     /**
      * Разрешать подсвечивать точки
      */
-    ShowPoints: Boolean;
+    ShowPoints: boolean;
     /**
      * Разрешать подсвечивать ребра
      */
-    ShowEdges: Boolean;
+    ShowEdges: boolean;
     /**
      * Установить строку подсказки
      */
-    Hint: String;
+    Hint: string;
     /**
      * Установить сообщение об ошибке
      */
-    ErrorHint: String;
+    ErrorHint: string;
     /**
      * Установить мигающую подсказку
      */
-    BlinkHint: String;
+    BlinkHint: string;
     /**
      * Включить режим Орто относительно точки
      * @param pos Координаты точки
@@ -265,7 +269,7 @@ declare class ScriptMenu{
     /**
      * Имя свойства
      */
-    Name: String;
+    Name: string;
     /**
      * Обработчик изменения свойства и вложенных свойств
      */
@@ -273,7 +277,7 @@ declare class ScriptMenu{
     /**
      * Количество вложенных свойств
      */
-    Count: Number;
+    Count: number;
     /**
      * Список вложенных свойств
      */
@@ -285,7 +289,7 @@ declare class ScriptMenu{
     /**
      * Флаг, сохраняется ли свойство в файл
      */
-    Store: Boolean;
+    Store: boolean;
     /**
      * Сохранить введенные пользователем данные в файле xml
      * @param filename 
@@ -295,7 +299,7 @@ declare class ScriptMenu{
      * Загрузить значения полей из файла xml
      * @param filename
      */
-    Load(filename: string): Boolean;
+    Load(filename: string): boolean;
     /**
      * Создать вложенную группу свойств
      * @param caption Название группы
@@ -328,27 +332,27 @@ declare class PropertyLayout{
     /**
      * Левая граница
      */
-    Left: Number;
+    Left: number;
     /**
      * Правая граница
      */
-    Right: Number;
+    Right: number;
     /**
      * Верхняя граница
      */
-    Top: Number;
+    Top: number;
     /**
      * Нижняя граница
      */
-    Bottom: Number;
+    Bottom: number;
     /**
      * Ширина свойства
      */
-    Width: Number;
+    Width: number;
     /**
      * Высота свойства
      */
-    Height: Number;
+    Height: number;
 
 }
 
@@ -356,27 +360,27 @@ declare class ScriptProperty{
     /**
      * Имя свойства
      */
-    Name: String;
+    Name: string;
     /**
      * Разрешить редактирование имени (для создания таблиц)
      */
-    NameEditable: Boolean;
+    NameEditable: boolean;
     /**
      * Возможность выделение свойства пользователем
      */
-    Enabled: Boolean;
+    Enabled: boolean;
     /**
      * Выделение вложенных свойств
      */
-    ChildrenEnabled: Boolean;
+    ChildrenEnabled: boolean;
     /**
      * Видимость свойства в окне свойств
      */
-    Visible: Boolean;
+    Visible: boolean;
     /**
      * Развернуты ли вложенные свойства
      */
-    Expanded: Boolean;
+    Expanded: boolean;
     /**
      * Обработчик изменения свойства и вложенных свойств
      */
@@ -396,15 +400,15 @@ declare class ScriptProperty{
     /**
      * Цвет фона
      */
-    BackColor: Number;
+    BackColor: number;
     /**
      * Пользовательское число
      */
-    Tag: Number;
+    Tag: number;
     /**
      * Количество вложенных свойств
      */
-    Count: Number;
+    Count: number;
     /**
      * Список вложенных свойств
      */
@@ -416,7 +420,7 @@ declare class ScriptProperty{
     /**
      * Флаг, сохраняется ли свойство в файл
      */
-    Store: Boolean;
+    Store: boolean;
     /**
      * Сохранить введенные пользователем данные в файле xml
      * @param filename
@@ -426,7 +430,7 @@ declare class ScriptProperty{
      * Загрузить значения полей из файла xml
      * @param filename
      */
-    Load(filename: string): Boolean;
+    Load(filename: string): boolean;
     /**
      * Проверка корректности значения
      */
@@ -434,11 +438,11 @@ declare class ScriptProperty{
     /**
      * Флаг корректности введенного значения, выставляется пользовательским обработчиком
      */
-    ValueValid: Boolean;
+    ValueValid: boolean;
     /**
      * Проверить значение свойства и вложенных свойств
      */
-    Validate(): Boolean;
+    Validate(): boolean;
     /**
      * Расположение свойства на форме
      */
@@ -458,7 +462,7 @@ declare class ScriptProperty{
     /**
      * Выравнивать с отступами
      */
-    AlignWithMargins: Boolean;
+    AlignWithMargins: boolean;
     /**
      * Отступы между компонентами 
      * @param  L Отступ слева
@@ -693,7 +697,7 @@ declare class InspectorError{
     /**
      * Количество объектов в ошибке
      */
-    ErrorObjectsCount: Number;
+    ErrorObjectsCount: number;
     /**
      * Список объектов, относящихся к ошибке
      */
@@ -701,11 +705,11 @@ declare class InspectorError{
     /**
      * Сообщение ошибки
      */
-    ErrorMessage: String;
+    ErrorMessage: string;
     /**
      * Имена объектов в ошибке
      */
-    ObjectsNames: String;
+    ObjectsNames: string;
 
 }
 
@@ -713,35 +717,35 @@ declare class InspectorOptions{
     /**
      * Проверка пересечения объектов
      */
-    ObjIntersectionAnalyze: Boolean;
+    ObjIntersectionAnalyze: boolean;
     /**
      * Проверка пересечения фурнитуры
      */
-    FastIntersectionAnalyze: Boolean;
+    FastIntersectionAnalyze: boolean;
     /**
      * Проверка корректности фурнитуры
      */
-    FastIncorrectAnalyze: Boolean;
+    FastIncorrectAnalyze: boolean;
     /**
      * Проверка скрепления панелей
      */
-    PanelNotFixedAnalyze: Boolean;
+    PanelNotFixedAnalyze: boolean;
     /**
      * Проверка размера панели на плите
      */
-    PanelTooLargeAnalyze: Boolean;
+    PanelTooLargeAnalyze: boolean;
     /**
      * Проверка размера пластика на плите
      */
-    PlasticTooLargeAnalyze: Boolean;
+    PlasticTooLargeAnalyze: boolean;
     /**
      * Проверка материала в наличии
      */
-    MatNotExistsAnalyze: Boolean;
+    MatNotExistsAnalyze: boolean;
     /**
      * Проверка материала на складе
      */
-    MatOutOfStockAnalyze: Boolean;
+    MatOutOfStockAnalyze: boolean;
 
 }
 
@@ -775,55 +779,55 @@ declare class ScriptForm{
     /**
      * Показать модальную форму
      */
-    ShowModal: Boolean;
+    ShowModal: boolean;
     /**
      * Заголовок формы
      */
-    Caption: String;
+    Caption: string;
     /**
      * Ширина формы
      */
-    Width: Number;
+    Width: number;
     /**
      * Высота формы
      */
-    Height: Number;
+    Height: number;
     /**
      * Минимальная ширина формы
      */
-    MinWidth: Number;
+    MinWidth: number;
     /**
      * Минимальная высота формы
      */
-    MinHeight: Number;
+    MinHeight: number;
     /**
      * Видимость формы
      */
-    Visible: Boolean;
+    Visible: boolean;
     /**
      * Положение левого края формы
      */
-    Left: Number;
+    Left: number;
     /**
      * Положение верхнего края формы
      */
-    Top: Number;
+    Top: number;
     /**
      * Показывать кнопку "ОК" на форме
      */
-    OKButton: Boolean;
+    OKButton: boolean;
     /**
      * Текст кнопки "ОК"
      */
-    OKButtonCaption: String;
+    OKButtonCaption: string;
     /**
      * Показывать кнопку "Отмена" на форме
      */
-    CancelButton: Boolean;
+    CancelButton: boolean;
     /**
      * Текст кнопки "Отмена"
      */
-    CancelButtonCaption: String;
+    CancelButtonCaption: string;
     /**
      * Обработчик закрытия формы
      */
@@ -839,11 +843,11 @@ declare class ScriptForm{
     /**
      * Возможность изменять размеры формы
      */
-    Resizable: Boolean;
+    Resizable: boolean;
     /**
      * Возможность пристыковывать не модальную форму
      */
-    Dockable: Boolean;
+    Dockable: boolean;
     /**
      * Обработчик нажатия на кнопку OK
      */
@@ -860,17 +864,17 @@ declare class ScriptParamFastenerDB{
      * Загрузить базу из файла
      * @param  filename
      */
-    LoadFromFile(filename: string): String;
+    LoadFromFile(filename: string): string;
     /**
      * Добавить базу из файла
      * @param  filename
      */
-    AddFromFile(filename: string): String;
+    AddFromFile(filename: string): string;
     /**
      * Сохранить базу в файл
      * @param  filename
      */
-    SaveToFile(filename: string): String;
+    SaveToFile(filename: string): string;
 
 }
 
@@ -878,11 +882,11 @@ declare class ScriptGroupProperty extends ScriptProperty {
     /**
      * 
      */
-    Image: String;
+    Image: string;
     /**
      * 
      */
-    MaxHeight: Number;
+    MaxHeight: number;
 
 }
 
@@ -890,7 +894,7 @@ declare class ScriptStringProperty extends ScriptProperty{
     /**
      * 
      */
-    Value: String;
+    Value: string;
 
 }
 
@@ -898,7 +902,7 @@ declare class ScriptBooleanProperty extends ScriptProperty{
     /**
      * 
      */
-    Value: Boolean;
+    Value: boolean;
 
 }
 
@@ -906,19 +910,19 @@ declare class ScriptNumberProperty extends ScriptProperty{
     /**
      * 
      */
-    MinValue: Number;
+    MinValue: number;
     /**
      * 
      */
-    MaxValue: Number;
+    MaxValue: number;
     /**
      * 
      */
-    Value: Number;
+    Value: number;
     /**
      * 
      */
-    ValueStep: Number;
+    ValueStep: number;
 
 }
 
@@ -934,7 +938,7 @@ declare class ScriptSelectorProperty extends ScriptProperty{
     /**
      * 
      */
-    Value: String;
+    Value: string;
     /**
      * Обработчик нажатия на кнопку редактирования свойства
      */
@@ -946,7 +950,7 @@ declare class ScriptComboProperty extends ScriptProperty{
     /**
      * 
      */
-    ItemIndex: Number;
+    ItemIndex: number;
     /**
      * Добавить элемент в список
      * @param item
@@ -955,7 +959,7 @@ declare class ScriptComboProperty extends ScriptProperty{
     /**
      * 
      */
-    Value: String;
+    Value: string;
 
 }
 
@@ -963,11 +967,11 @@ declare class ScriptMaterialProperty extends ScriptProperty{
     /**
      * 
      */
-    Thickness: Number;
+    Thickness: number;
     /**
      * 
      */
-    Width: Number;
+    Width: number;
     /**
      * Установить активным. Все последующие элементы будут построены из этого материала
      */
@@ -979,11 +983,11 @@ declare class ScriptButtProperty extends ScriptProperty{
     /**
      * Толщина кромки
      */
-    Thickness: Number;
+    Thickness: number;
     /**
      * Ширина ленты
      */
-    Width: Number;
+    Width: number;
     /**
      * Установить активным. Все последующие элементы будут построены из этого материала
      */
@@ -1003,7 +1007,7 @@ declare class ScriptColorProperty extends ScriptProperty{
     /**
      * 
      */
-    Value: Number;
+    Value: number;
 
 }
 
@@ -1025,15 +1029,15 @@ declare class FurnMaterial{
     /**
      * 
      */
-    Name: String;
+    Name: string;
     /**
      * 
      */
-    Thickness: Number;
+    Thickness: number;
     /**
      * 
      */
-    Width: Number;
+    Width: number;
     /**
      * Создать материал из наименования и толщины (ширины)
      * @param name
@@ -1047,15 +1051,15 @@ declare class Vector{
     /**
      * 
      */
-    x: Number;
+    x: number;
     /**
      * 
      */
-    y: Number;
+    y: number;
     /**
      * 
      */
-    z: Number;
+    z: number;
 
 }
 
@@ -1063,11 +1067,11 @@ declare class Point{
     /**
      * 
      */
-    x: Number;
+    x: number;
     /**
      * 
      */
-    y: Number;
+    y: number;
 
 }
 
@@ -1095,11 +1099,11 @@ declare class Object3 extends Object{
     /**
      * Наименование
      */
-    Name: String;
+    Name: string;
     /**
      * Артикул
      */
-    ArtPos: String;
+    ArtPos: string;
     /**
      * Родитель объекта
      */
@@ -1107,19 +1111,19 @@ declare class Object3 extends Object{
     /**
      * Видимость объекта
      */
-    Visible: Boolean;
+    Visible: boolean;
     /**
      * Является ли объект выделенным
      */
-    Selected: Boolean;
+    Selected: boolean;
     /**
      * Цвет линий объекта
      */
-    Color: Number;
+    Color: number;
     /**
      * Является ли объект структурным
      */
-    List: Boolean;
+    List: boolean;
     /**
      * Привести объект к структурному
      */
@@ -1135,15 +1139,15 @@ declare class Object3 extends Object{
     /**
      * Координата x
      */
-    PositionX: Number;
+    PositionX: number;
     /**
      * Координата y
      */
-    PositionY: Number;
+    PositionY: number;
     /**
      * Координата z
      */
-    PositionZ: Number;
+    PositionZ: number;
     /**
      * Установить нулевые положение и ориентацию объекта
      */
@@ -1249,7 +1253,7 @@ declare class Object3 extends Object{
     /**
      * Количество пользовательских свойств
      */
-    UserPropCount: Number;
+    UserPropCount: number;
     /**
      * Значения свойства по его имени или индексу
      */
@@ -1257,7 +1261,7 @@ declare class Object3 extends Object{
     /**
      * Названия свойств
      */
-    UserPropertyName: Array<String>;
+    UserPropertyName: Array<string>;
     /**
      * Перестроить объект после изменения его свойств
      */
@@ -1269,7 +1273,7 @@ declare class List3D extends Object3{
     /**
      * Количество объектов в структуре
      */
-    Count: Number;
+    Count: number;
     /**
      * Список объектов
      */
@@ -1282,7 +1286,7 @@ declare class List3D extends Object3{
     /**
      * Являетсяли объект эластичным
      */
-    IsElastic(): Boolean;
+    IsElastic(): boolean;
     /**
      * Растянуть объект до требуемых размеров
      * @param newSize
@@ -1292,7 +1296,7 @@ declare class List3D extends Object3{
      * Загрузить объекты из файлов *.b3d,*.f3d
      * @param file
      */
-    Load(file: string): Boolean;
+    Load(file: string): boolean;
 
 }
 
@@ -1304,23 +1308,23 @@ declare class Panel extends Object3{
     /**
      * Ширина контура панели
      */
-    ContourWidth: Number;
+    ContourWidth: number;
     /**
      * Высота контура панели
      */
-    ContourHeight: Number;
+    ContourHeight: number;
     /**
      * Толщина панели
      */
-    Thickness: Number;
+    Thickness: number;
     /**
      * Материал панели
      */
-    MaterialName: String;
+    MaterialName: string;
     /**
      * Ширина материала
      */
-    MaterialWidth: Number;
+    MaterialWidth: number;
     /**
      * Ориентация текстуры
      */
@@ -1342,11 +1346,11 @@ declare class Panel extends Object3{
      * @param index индекс кромки
      * @param distance расстояние до панелей
      */
-    IsButtVisible(index: number, distance: number): Boolean;
+    IsButtVisible(index: number, distance: number): boolean;
     /**
      * Является ли контур прямоугольным?
      */
-    IsContourRectangle: Boolean;
+    IsContourRectangle: boolean;
     /**
      * Накатать кромку на элемент
      * @param material
@@ -1375,15 +1379,15 @@ declare class Extrusion extends Object3{
     /**
      * Длина профиля
      */
-    Thickness: Number;
+    Thickness: number;
     /**
      * Материал
      */
-    MaterialName: String;
+    MaterialName: string;
     /**
      * Ширина материала
      */
-    MaterialWidth: Number;
+    MaterialWidth: number;
     /**
      * Отрезать часть профиля в точке pos перпендикулярно normal
      * @param pos
@@ -1405,11 +1409,11 @@ declare class Trajectory extends Object3{
     /**
      * 
      */
-    MaterialName: String;
+    MaterialName: string;
     /**
      * Ширина материала
      */
-    MaterialWidth: Number;
+    MaterialWidth: number;
 
 }
 
@@ -1421,7 +1425,7 @@ declare class Block extends List3D{
     /**
      * Флаг составной фурнитуры
      */
-    IsFastener(): Boolean;
+    IsFastener(): boolean;
 
 }
 
@@ -1452,7 +1456,7 @@ declare class Size3D extends Object3{
     /**
      * Размер
      */
-    Value: Number;
+    Value: number;
 
 }
 
@@ -1539,7 +1543,7 @@ declare class PanelButts{
     /**
      * 
      */
-    Count: Number;
+    Count: number;
     /**
      * 
      */
@@ -1551,19 +1555,19 @@ declare class PanelButt{
     /**
      * 
      */
-    ElemIndex: Number;
+    ElemIndex: number;
     /**
      * 
      */
-    Sign: String;
+    Sign: string;
     /**
      * 
      */
-    Material: String;
+    Material: string;
     /**
      * 
      */
-    Thickness: Number;
+    Thickness: number;
 
 }
 
@@ -1575,7 +1579,7 @@ declare class PanelPlastics{
     /**
      * 
      */
-    Count: Number;
+    Count: number;
     /**
      * 
      */
@@ -1587,11 +1591,11 @@ declare class PanelPlastic{
     /**
      * 
      */
-    Material: String;
+    Material: string;
     /**
      * 
      */
-    Thickness: Number;
+    Thickness: number;
     /**
      * 
      */
@@ -1607,7 +1611,7 @@ declare class PanelCuts{
     /**
      * 
      */
-    Count: Number;
+    Count: number;
     /**
      * 
      */
@@ -1619,11 +1623,11 @@ declare class PanelCut{
     /**
      * 
      */
-    Name: String;
+    Name: string;
     /**
      * Условное обозначение
      */
-    Sign: String;
+    Sign: string;
     /**
      * Траектория паза
      */
@@ -1639,15 +1643,15 @@ declare class Contour2D{
     /**
      * Количество элементов контура
      */
-    Count: Number;
+    Count: number;
     /**
      * Ширина контура
      */
-    Width: Number;
+    Width: number;
     /**
      * Высота контура
      */
-    Height: Number;
+    Height: number;
     /**
      * Левый нижний угол охватывающего прямоугольника
      */
@@ -1807,31 +1811,31 @@ declare class Contour2D{
      * Загрузить контур из файла *.frw
      * @param file
      */
-    Load(file: string): Boolean;
+    Load(file: string): boolean;
     /**
      * Находится ли точка внутри контура?
      * @param x
      * @param y
      */
-    IsPointInside(x: number, y: number): Boolean;
+    IsPointInside(x: number, y: number): boolean;
     /**
      * Находится ли контур внутри другого?
      * @param contour
      */
-    IsInContour(contour: Contour2D): Boolean;
+    IsInContour(contour: Contour2D): boolean;
     /**
      * Является ли контур замкнутым?
      */
-    IsClosedContour(): Boolean;
+    IsClosedContour(): boolean;
     /**
      * Является ли контур прямоугольным?
      */
-    IsContourRectangle(): Boolean;
+    IsContourRectangle(): boolean;
     /**
      * Упорядочить элеметны контура в одном направлении
      * @param closet
      */
-    OrderContours(closet): Boolean;
+    OrderContours(closet): boolean;
 
 }
 
@@ -1847,18 +1851,18 @@ declare class Geometry2D{
      * @param elem1
      * @param elem2
      */
-    Compare(elem1, elem2): Boolean;
+    Compare(elem1, elem2): boolean;
     /**
      * Найти кратчайшее расстояние между элементами
      * @param elem1
      * @param elem2
      */
-    Distance(elem1, elem2): Number;
+    Distance(elem1, elem2): number;
     /**
      * Найти площадь контура
      * @param contour
      */
-    Area(contour: Contour2D): Number;
+    Area(contour: Contour2D): number;
 
 }
 
@@ -1866,19 +1870,19 @@ declare class InControl{
     /**
      * 
      */
-    id: Number;
+    id: number;
     /**
      * 
      */
-    Enabled: Boolean;
+    Enabled: boolean;
     /**
      * 
      */
-    Visible: Boolean;
+    Visible: boolean;
     /**
      * 
      */
-    Hint: String;
+    Hint: string;
     /**
      * Обработчик
      */
@@ -1895,7 +1899,7 @@ declare class InButton extends InControl{
     /**
      * 
      */
-    Combo: Boolean;
+    Combo: boolean;
 
 }
 
@@ -1903,15 +1907,15 @@ declare class InFloat extends InControl{
     /**
      * 
      */
-    Value: Number;
+    Value: number;
     /**
      * 
      */
-    ReadOnly: Boolean;
+    ReadOnly: boolean;
     /**
      * 
      */
-    Fixed: Boolean;
+    Fixed: boolean;
 
 }
 
@@ -1919,15 +1923,15 @@ declare class InNumber extends InControl{
     /**
      * 
      */
-    Value: Number;
+    Value: number;
     /**
      * 
      */
-    ReadOnly: Boolean;
+    ReadOnly: boolean;
     /**
      * 
      */
-    Fixed: Boolean;
+    Fixed: boolean;
 
 }
 
@@ -1935,15 +1939,15 @@ declare class InMaterial extends InControl{
     /**
      * 
      */
-    Name: String;
+    Name: string;
     /**
      * 
      */
-    Thickness: Number;
+    Thickness: number;
     /**
      * 
      */
-    Width: Number;
+    Width: number;
     /**
      * Установить активным. Все последующие элементы будут построены из этого материала
      */
@@ -1960,31 +1964,31 @@ declare class InButtMaterial extends InControl{
     /**
      * 
      */
-    Name: String;
+    Name: string;
     /**
      * 
      */
-    Sign: String;
+    Sign: string;
     /**
      * 
      */
-    Thickness: Number;
+    Thickness: number;
     /**
      * 
      */
-    Width: Number;
+    Width: number;
     /**
      * 
      */
-    Overhung: Number;
+    Overhung: number;
     /**
      * 
      */
-    Allowance: Number;
+    Allowance: number;
     /**
      * 
      */
-    ClipPanel: Boolean;
+    ClipPanel: boolean;
 
 }
 
@@ -2036,11 +2040,11 @@ declare class DoorsMaker{
     /**
      * 
      */
-    Silent: Boolean;
+    Silent: boolean;
     /**
      * 
      */
-    ShowErrors: Boolean;
+    ShowErrors: boolean;
     /**
      * Сохранить параметры установки дверей в файл
      * @param filename
@@ -2050,7 +2054,7 @@ declare class DoorsMaker{
      * Загрузить параметры установки дверей из файла
      * @param filename
      */
-    Load(filename: string): Boolean;
+    Load(filename: string): boolean;
     /**
      * Установить двери в секцию (Объект - Panel или Edge)
      * @param LeftObject
@@ -2066,7 +2070,7 @@ declare class BoxesMaker{
     /**
      * 
      */
-    ShowErrors: Boolean;
+    ShowErrors: boolean;
     /**
      * Сохранить параметры установки ящиков в файл
      * @param filename
@@ -2076,7 +2080,7 @@ declare class BoxesMaker{
      * Загрузить параметры установки ящиков из файла
      * @param filename
      */
-    Load(filename: string): Boolean;
+    Load(filename: string): boolean;
     /**
      * Установить ящик в секцию. LeftObject, RightObject - панели. TopObject, BottomObject - Panel или Edge
      * @param LeftObject Левая панель
@@ -2092,23 +2096,23 @@ declare class ScItemTovar{
     /**
      * Артикул элемента товара
      */
-    Article: String;
+    Article: string;
     /**
      * Имя элемента товара
      */
-    Name: String;
+    Name: string;
     /**
      * Текущий материал
      */
-    Material: String;
+    Material: string;
     /**
      * Имя группы материалов на замену
      */
-    GroupMaterial: String;
+    GroupMaterial: string;
     /**
      * Имя типа элемента
      */
-    TypeElement: String;
+    TypeElement: string;
     /**
      * Список объектов из модели входящих в состав элемента товара
      */
@@ -2125,11 +2129,11 @@ declare class ScItemTovarList{
     /**
      * Количество элементов товара
      */
-    Count: Number;
+    Count: number;
     /**
      * Имя товара
      */
-    TovarName: String;
+    TovarName: string;
     /**
      * Найти элемент товара по имени
      * @param name
@@ -2151,7 +2155,7 @@ declare class Arguments extends Object{
     /**
      * 
      */
-    length: Number;
+    length: number;
 
 }
 /**
@@ -2254,7 +2258,7 @@ declare var Undo: Undo3D;
  * Вывести окно ввода строки
  * @param message
  */
-declare function prompt(message): String;
+declare function prompt(message): string;
 
 /**
  * Вывести окно сообщения
@@ -2266,7 +2270,7 @@ declare function alert(str);
  * Показать окно подтверждения (Да/Нет)
  * @param message
  */
-declare function confirm(message): Boolean;
+declare function confirm(message): boolean;
 
 /**
  * Открыть фурнитуру для установки на модель
