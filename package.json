@@ -1,7 +1,7 @@
 {
   "name": "bazis-debug",
   "displayName": "Базис-Отладчик",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "publisher": "BazisSoft",
   "icon": "images/bazis-logo.svg",
   "description": "%extension.description%",
@@ -74,7 +74,7 @@
     "commands":[
       {
         "command": "bazis-debug.addDefintionFiles",
-        "title": "Добавить файлы определений *.d.ts для Базис-Мебельщик"
+        "title": "Добавить/обновить файлы определений *.d.ts для Базис-Мебельщик"
       }
     ],
     "breakpoints": [

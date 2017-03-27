@@ -1,5 +1,5 @@
 
-declare class System {
+declare interface System {
     /**
      * Вывести диагностическое сообщение (для отладки?)
      * @param str сообщение 
@@ -65,7 +65,7 @@ declare class System {
 
 }
 
-declare class IDispatch {
+declare interface IDispatch {
     /**
      * Информациях о методах и свойствах объекта
      */
@@ -73,14 +73,15 @@ declare class IDispatch {
 
 }
 
-declare class ProjectFile{
+/*declare interface ProjectFile{
     Items: Array<ProjectFile>;
     Count: number;
     Name: string;
     FullName: string;
-}
+    IsFileProject: boolean;
+}*/
 
-declare class Model3D extends List3D {
+declare interface Model3D extends List3D {
     /**
      * Размер модели
      */
@@ -116,7 +117,7 @@ declare class Model3D extends List3D {
 
 }
 
-declare class Action3D{
+declare interface Action3D{
     /**
      * Если false, то запрещены любые функции взаимодействия с пользователем
      */
@@ -258,14 +259,14 @@ declare class Action3D{
     /**
      * Загрузить проект из файла
      */
-    LoadProject(filename: string): ProjectFile;
+    //LoadProject(filename: string): ProjectFile;
     /**
      * Сохранить проект в файл
      */
-    SaveProject(filename: string, project: ProjectFile);
+    //SaveProject(filename: string, project: ProjectFile);
 }
 
-declare class ScriptMenu{
+declare interface ScriptMenu{
     /**
      * Имя свойства
      */
@@ -328,7 +329,7 @@ declare class ScriptMenu{
 
 }
 
-declare class PropertyLayout{
+declare interface PropertyLayout{
     /**
      * Левая граница
      */
@@ -356,7 +357,7 @@ declare class PropertyLayout{
 
 }
 
-declare class ScriptProperty{
+declare interface ScriptProperty{
     /**
      * Имя свойства
      */
@@ -629,25 +630,25 @@ declare enum WindowPosition {
 /**
  * Позиция фурнитуры при установке крепежа
  */
-declare enum FurniturePosition {
-    /**
-     * Установка фурнитуры внутри стыка
-     */
-    Inside,
-    /**
-     * Установка фурнитуры снаружи стыка
-     */
-    Outside,
-    /**
-     * Установка фурнитуры вверху стыка (только для стыков с горизонтальной панелью)
-     */
-    Up,
-    /**
-     * Установка фурнитуры внизу стыка (только для стыков с горизонтальной панелью)
-     */
-    Down
+// declare enum FurniturePosition {
+//     /**
+//      * Установка фурнитуры внутри стыка
+//      */
+//     Inside,
+//     /**
+//      * Установка фурнитуры снаружи стыка
+//      */
+//     Outside,
+//     /**
+//      * Установка фурнитуры вверху стыка (только для стыков с горизонтальной панелью)
+//      */
+//     Up,
+//     /**
+//      * Установка фурнитуры внизу стыка (только для стыков с горизонтальной панелью)
+//      */
+//     Down
 
-}
+// }
 
 
 /**
@@ -689,7 +690,7 @@ declare enum ErrorType {
 
 }
 
-declare class InspectorError{
+declare interface InspectorError{
     /**
      * Тип ошибки
      */
@@ -713,7 +714,7 @@ declare class InspectorError{
 
 }
 
-declare class InspectorOptions{
+declare interface InspectorOptions{
     /**
      * Проверка пересечения объектов
      */
@@ -749,12 +750,12 @@ declare class InspectorOptions{
 
 }
 
-declare class ModelInspector{
+declare interface ModelInspector{
     /**
      * Проверить модель
      * @param Model
      */
-    Run(Model: Model3D);
+    Run(Model: List3D);
     /**
      * Список ошибок
      */
@@ -766,7 +767,7 @@ declare class ModelInspector{
 
 }
 
-declare class ScriptForm{
+declare interface ScriptForm{
     /**
      * Набор редактируемых свойств
      */
@@ -859,7 +860,7 @@ declare class ScriptForm{
 
 }
 
-declare class ScriptParamFastenerDB{
+declare interface ScriptParamFastenerDB{
     /**
      * Загрузить базу из файла
      * @param  filename
@@ -878,7 +879,7 @@ declare class ScriptParamFastenerDB{
 
 }
 
-declare class ScriptGroupProperty extends ScriptProperty {
+declare interface ScriptGroupProperty extends ScriptProperty {
     /**
      * 
      */
@@ -890,7 +891,7 @@ declare class ScriptGroupProperty extends ScriptProperty {
 
 }
 
-declare class ScriptStringProperty extends ScriptProperty{
+declare interface ScriptStringProperty extends ScriptProperty{
     /**
      * 
      */
@@ -898,7 +899,7 @@ declare class ScriptStringProperty extends ScriptProperty{
 
 }
 
-declare class ScriptBooleanProperty extends ScriptProperty{
+declare interface ScriptBooleanProperty extends ScriptProperty{
     /**
      * 
      */
@@ -906,7 +907,7 @@ declare class ScriptBooleanProperty extends ScriptProperty{
 
 }
 
-declare class ScriptNumberProperty extends ScriptProperty{
+declare interface ScriptNumberProperty extends ScriptProperty{
     /**
      * 
      */
@@ -926,7 +927,7 @@ declare class ScriptNumberProperty extends ScriptProperty{
 
 }
 
-declare class ScriptButtonProperty extends ScriptProperty{
+declare interface ScriptButtonProperty extends ScriptProperty{
     /**
      * Обработчик нажатия на кнопку
      */
@@ -934,7 +935,7 @@ declare class ScriptButtonProperty extends ScriptProperty{
 
 }
 
-declare class ScriptSelectorProperty extends ScriptProperty{
+declare interface ScriptSelectorProperty extends ScriptProperty{
     /**
      * 
      */
@@ -946,7 +947,7 @@ declare class ScriptSelectorProperty extends ScriptProperty{
 
 }
 
-declare class ScriptComboProperty extends ScriptProperty{
+declare interface ScriptComboProperty extends ScriptProperty{
     /**
      * 
      */
@@ -963,7 +964,7 @@ declare class ScriptComboProperty extends ScriptProperty{
 
 }
 
-declare class ScriptMaterialProperty extends ScriptProperty{
+declare interface ScriptMaterialProperty extends ScriptProperty{
     /**
      * 
      */
@@ -979,7 +980,7 @@ declare class ScriptMaterialProperty extends ScriptProperty{
 
 }
 
-declare class ScriptButtProperty extends ScriptProperty{
+declare interface ScriptButtProperty extends ScriptProperty{
     /**
      * Толщина кромки
      */
@@ -995,7 +996,7 @@ declare class ScriptButtProperty extends ScriptProperty{
 
 }
 
-declare class ScriptFurnitureProperty extends ScriptProperty{
+declare interface ScriptFurnitureProperty extends ScriptProperty{
     /**
      * 
      */
@@ -1003,7 +1004,7 @@ declare class ScriptFurnitureProperty extends ScriptProperty{
 
 }
 
-declare class ScriptColorProperty extends ScriptProperty{
+declare interface ScriptColorProperty extends ScriptProperty{
     /**
      * 
      */
@@ -1011,7 +1012,7 @@ declare class ScriptColorProperty extends ScriptProperty{
 
 }
 
-declare class Undo3D{
+declare interface Undo3D{
     /**
      * 
      * @param obj
@@ -1025,7 +1026,7 @@ declare class Undo3D{
 
 }
 
-declare class FurnMaterial{
+declare interface FurnMaterial{
     /**
      * 
      */
@@ -1047,7 +1048,7 @@ declare class FurnMaterial{
 
 }
 
-declare class Vector{
+declare interface Vector{
     /**
      * 
      */
@@ -1063,7 +1064,7 @@ declare class Vector{
 
 }
 
-declare class Point{
+declare interface Point{
     /**
      * 
      */
@@ -1075,7 +1076,7 @@ declare class Point{
 
 }
 
-declare class Edge3{
+declare interface Edge3{
     /**
      * Начало ребра в ЛСК
      */
@@ -1095,7 +1096,7 @@ declare class Edge3{
 
 }
 
-declare class Object3 extends Object{
+declare interface Object3 extends Object{
     /**
      * Наименование
      */
@@ -1269,7 +1270,7 @@ declare class Object3 extends Object{
 
 }
 
-declare class List3D extends Object3{
+declare interface List3D extends Object3{
     /**
      * Количество объектов в структуре
      */
@@ -1300,7 +1301,7 @@ declare class List3D extends Object3{
 
 }
 
-declare class Panel extends Object3{
+declare interface Panel extends Object3{
     /**
      * Контур панели
      */
@@ -1371,7 +1372,7 @@ declare class Panel extends Object3{
 
 }
 
-declare class Extrusion extends Object3{
+declare interface Extrusion extends Object3{
     /**
      * Контур профиля
      */
@@ -1397,7 +1398,7 @@ declare class Extrusion extends Object3{
 
 }
 
-declare class Trajectory extends Object3{
+declare interface Trajectory extends Object3{
     /**
      * 
      */
@@ -1417,7 +1418,7 @@ declare class Trajectory extends Object3{
 
 }
 
-declare class Block extends List3D{
+declare interface Block extends List3D{
     /**
      * 
      */
@@ -1429,7 +1430,7 @@ declare class Block extends List3D{
 
 }
 
-declare class Assembly extends List3D{
+declare interface Assembly extends List3D{
     /**
      * 
      */
@@ -1437,7 +1438,7 @@ declare class Assembly extends List3D{
 
 }
 
-declare class Contour3D extends Object3{
+declare interface Contour3D extends Object3{
     /**
      * Элементы вспомогательного контура
      */
@@ -1445,7 +1446,7 @@ declare class Contour3D extends Object3{
 
 }
 
-declare class Size3D extends Object3{
+declare interface Size3D extends Object3{
     /**
      * Перестроить по точкам
      * @param Pos1
@@ -1535,7 +1536,7 @@ declare enum TextureOrientation {
 
 }
 
-declare class PanelButts{
+declare interface PanelButts{
     /**
      * 
      */
@@ -1551,7 +1552,7 @@ declare class PanelButts{
 
 }
 
-declare class PanelButt{
+declare interface PanelButt{
     /**
      * 
      */
@@ -1571,7 +1572,7 @@ declare class PanelButt{
 
 }
 
-declare class PanelPlastics{
+declare interface PanelPlastics{
     /**
      * 
      */
@@ -1587,7 +1588,7 @@ declare class PanelPlastics{
 
 }
 
-declare class PanelPlastic{
+declare interface PanelPlastic{
     /**
      * 
      */
@@ -1603,7 +1604,7 @@ declare class PanelPlastic{
 
 }
 
-declare class PanelCuts{
+declare interface PanelCuts{
     /**
      * 
      */
@@ -1619,7 +1620,7 @@ declare class PanelCuts{
 
 }
 
-declare class PanelCut{
+declare interface PanelCut{
     /**
      * 
      */
@@ -1639,7 +1640,7 @@ declare class PanelCut{
 
 }
 
-declare class Contour2D{
+declare interface Contour2D{
     /**
      * Количество элементов контура
      */
@@ -1839,7 +1840,7 @@ declare class Contour2D{
 
 }
 
-declare class Geometry2D{
+declare interface Geometry2D{
     /**
      * Вычислить точки пересечения двухмерных элементов
      * @param elem1
@@ -1866,7 +1867,7 @@ declare class Geometry2D{
 
 }
 
-declare class InControl{
+declare interface InControl{
     /**
      * 
      */
@@ -1890,7 +1891,7 @@ declare class InControl{
 
 }
 
-declare class InButton extends InControl{
+declare interface InButton extends InControl{
     /**
      * Создать подменю
      * @param caption
@@ -1903,7 +1904,7 @@ declare class InButton extends InControl{
 
 }
 
-declare class InFloat extends InControl{
+declare interface InFloat extends InControl{
     /**
      * 
      */
@@ -1919,7 +1920,7 @@ declare class InFloat extends InControl{
 
 }
 
-declare class InNumber extends InControl{
+declare interface InNumber extends InControl{
     /**
      * 
      */
@@ -1935,7 +1936,7 @@ declare class InNumber extends InControl{
 
 }
 
-declare class InMaterial extends InControl{
+declare interface InMaterial extends InControl{
     /**
      * 
      */
@@ -1960,7 +1961,7 @@ declare class InMaterial extends InControl{
 
 }
 
-declare class InButtMaterial extends InControl{
+declare interface InButtMaterial extends InControl{
     /**
      * 
      */
@@ -1992,7 +1993,7 @@ declare class InButtMaterial extends InControl{
 
 }
 
-declare class InFurniture extends InControl{
+declare interface InFurniture extends InControl{
     /**
      * Установить крепеж между двух панелей
      * @param panel1
@@ -2014,7 +2015,7 @@ declare class InFurniture extends InControl{
 
 }
 
-declare class InfFurniture{
+declare interface InfFurniture{
     /**
      * Установить крепеж между двух панелей
      * @param panel1
@@ -2036,7 +2037,7 @@ declare class InfFurniture{
 
 }
 
-declare class DoorsMaker{
+declare interface DoorsMaker{
     /**
      * 
      */
@@ -2066,7 +2067,7 @@ declare class DoorsMaker{
 
 }
 
-declare class BoxesMaker{
+declare interface BoxesMaker{
     /**
      * 
      */
@@ -2092,7 +2093,7 @@ declare class BoxesMaker{
 
 }
 
-declare class ScItemTovar{
+declare interface ScItemTovar{
     /**
      * Артикул элемента товара
      */
@@ -2120,7 +2121,7 @@ declare class ScItemTovar{
 
 }
 
-declare class ScItemTovarList{
+declare interface ScItemTovarList{
     /**
      * Доступ к элементу товара по индексу
      * @param [index]
@@ -2147,7 +2148,7 @@ declare class ScItemTovarList{
 
 
 
-declare class Arguments extends Object{
+declare interface Arguments extends Object{
     /**
      * 
      */
