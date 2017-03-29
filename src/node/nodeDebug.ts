@@ -723,7 +723,6 @@ export class NodeDebugSession extends DebugSession {
 						break;
 					}
 				}
-			this.log('la', `starting launch, exePath from registry: ${this.exePath} `)
 			this.internalLaunchRequest(response, args);
 		});
 	}
@@ -767,10 +766,10 @@ export class NodeDebugSession extends DebugSession {
 				return;
 			}
 		} else {
-			if (!PathUtils.isOnPath(NodeDebugSession.NODE)) {
+			/*if (!PathUtils.isOnPath(NodeDebugSession.NODE)) {
 				this.sendErrorResponse(response, 2001, localize('VSND2001', "Cannot find runtime '{0}' on PATH.", '{_runtime}'), { _runtime: NodeDebugSession.NODE });
 				return;
-			}
+			}*/
 
 			if (this.exePath === ''){
 				this.sendErrorResponse(response, 2001, localize('VSND2001', "Cannot find runtime '{0}' on Registry.", '{_runtime}'), { _runtime: NodeDebugSession.BazisVersion })
@@ -851,122 +850,114 @@ export class NodeDebugSession extends DebugSession {
 	}
 
 	private launchRequest2(response: DebugProtocol.LaunchResponse, args: LaunchRequestArguments, programPath: string, programArgs: string[], runtimeExecutable: string, runtimeArgs: string[], port: number): void {
-		try{
-			let program: string | undefined;
-			let workingDirectory = Path.dirname(programPath);
 
-			program = programPath;
+		let program: string | undefined;
+		let workingDirectory = Path.dirname(programPath);
 
-			// we always break on entry (but if user did not request this, we will not stop in the UI).
-			let launchArgs = [ runtimeExecutable ];
-			if (! this._noDebug) {
-				launchArgs.push(`--debug-brk=${port}`);
-			}
-			else{
-				launchArgs.push('--eval');
-			}
-			launchArgs = launchArgs.concat(runtimeArgs);
-			if (program) {
-				launchArgs.push(program);
-			}
-			launchArgs = launchArgs.concat(programArgs);
+		program = programPath;
 
-			const address = args.address;
-			const timeout = args.timeout;
+		// we always break on entry (but if user did not request this, we will not stop in the UI).
+		let launchArgs = [ runtimeExecutable ];
+		if (! this._noDebug) {
+			launchArgs.push(`--debug-brk=${port}`);
+		}
+		else{
+			launchArgs.push('--eval');
+		}
+		launchArgs = launchArgs.concat(runtimeArgs);
+		if (program) {
+			launchArgs.push(program);
+		}
+		launchArgs = launchArgs.concat(programArgs);
 
-			let envVars = args.env;
+		const address = args.address;
+		const timeout = args.timeout;
 
-			// read env from disk and merge into envVars
-			if (args.envFile) {
-				try {
-					const buffer = FS.readFileSync(args.envFile, 'utf8');
-					const env = {};
-					buffer.split('\n').forEach( line => {
-						const r = line.match(/^\s*([\w\.\-]+)\s*=\s*(.*)?\s*$/);
-						if (r !== null) {
-							let value = r[2] || '';
-							if (value.length > 0 && value.charAt(0) === '"' && value.charAt(value.length-1) === '"') {
-								value = value.replace(/\\n/gm, '\n');
-							}
-							env[r[1]] = value.replace(/(^['"]|['"]$)/g, '');
+		let envVars = args.env;
+
+		// read env from disk and merge into envVars
+		if (args.envFile) {
+			try {
+				const buffer = FS.readFileSync(args.envFile, 'utf8');
+				const env = {};
+				buffer.split('\n').forEach( line => {
+					const r = line.match(/^\s*([\w\.\-]+)\s*=\s*(.*)?\s*$/);
+					if (r !== null) {
+						let value = r[2] || '';
+						if (value.length > 0 && value.charAt(0) === '"' && value.charAt(value.length-1) === '"') {
+							value = value.replace(/\\n/gm, '\n');
 						}
-					});
-					envVars = PathUtils.extendObject(env, args.env); // launch config env vars overwrite .env vars
-				} catch (e) {
-					this.sendErrorResponse(response, 2029, localize('VSND2029', "Can't load environment variables from file ({0}).", '{_error}'), { _error: e.message });
-					return;
-				}
-			}
-
-			if (this._supportsRunInTerminalRequest && (this._console === 'externalTerminal' || this._console === 'integratedTerminal')) {
-
-				const termArgs : DebugProtocol.RunInTerminalRequestArguments = {
-					kind: this._console === 'integratedTerminal' ? 'integrated' : 'external',
-					title: localize('node.console.title', "Node Debug Console"),
-					cwd: <string> workingDirectory,
-					args: launchArgs,
-					env: envVars
-				};
-
-				this.runInTerminalRequest(termArgs, NodeDebugSession.RUNINTERMINAL_TIMEOUT, runResponse => {
-					if (runResponse.success) {
-
-						// since node starts in a terminal, we cannot track it with an 'exit' handler
-						// plan for polling after we have gotten the process pid.
-						this._pollForNodeProcess = true;
-
-						if (this._noDebug) {
-							this.sendResponse(response);
-						} else {
-							this._attach(response, port, address, timeout);
-						}
-					} else {
-						this.sendErrorResponse(response, 2011, localize('VSND2011', "Cannot launch debug target in terminal ({0}).", '{_error}'), { _error: runResponse.message } );
-						this._terminated('terminal error: ' + runResponse.message);
+						env[r[1]] = value.replace(/(^['"]|['"]$)/g, '');
 					}
 				});
-
-			} else {
-
-				this._sendLaunchCommandToConsole(launchArgs);
-
-				// merge environment variables into a copy of the process.env
-				envVars = PathUtils.extendObject(PathUtils.extendObject( {}, process.env), envVars);
-
-				const options = {
-					cwd: workingDirectory,
-					env: envVars
-				};
-
-				const nodeProcess = CP.spawn(runtimeExecutable, launchArgs.slice(1), options);
-				if (!nodeProcess){
-					this._terminated('node child process doesn\'t exist');
-				}
-				nodeProcess.on('error', (error) => {
-					this.sendErrorResponse(response, 2017, localize('VSND2017', "Cannot launch debug target ({0}).", '{_error}'), { _error: error.message }, ErrorDestination.Telemetry | ErrorDestination.User );
-					this._terminated(`failed to launch target (${error})`);
-				});
-				nodeProcess.on('exit', () => {
-					this._terminated('target exited');
-				});
-				nodeProcess.on('close', (code) => {
-					this._terminated('target closed');
-				});
-
-				this._nodeProcessId = nodeProcess.pid;
-
-				this._captureOutput(nodeProcess);
-
-				if (this._noDebug) {
-					this.sendResponse(response);
-				} else {
-					this._attach(response, port, address, timeout);
-				}
+				envVars = PathUtils.extendObject(env, args.env); // launch config env vars overwrite .env vars
+			} catch (e) {
+				this.sendErrorResponse(response, 2029, localize('VSND2029', "Can't load environment variables from file ({0}).", '{_error}'), { _error: e.message });
+				return;
 			}
 		}
-		catch(e){
-			this.log('la', `internal error: ${e.message}\n ${e.stack}`);
-			this._terminated('uncaught error');
+
+		if (this._supportsRunInTerminalRequest && (this._console === 'externalTerminal' || this._console === 'integratedTerminal')) {
+
+			const termArgs : DebugProtocol.RunInTerminalRequestArguments = {
+				kind: this._console === 'integratedTerminal' ? 'integrated' : 'external',
+				title: localize('node.console.title', "Node Debug Console"),
+				cwd: <string> workingDirectory,
+				args: launchArgs,
+				env: envVars
+			};
+
+			this.runInTerminalRequest(termArgs, NodeDebugSession.RUNINTERMINAL_TIMEOUT, runResponse => {
+				if (runResponse.success) {
+
+					// since node starts in a terminal, we cannot track it with an 'exit' handler
+					// plan for polling after we have gotten the process pid.
+					this._pollForNodeProcess = true;
+
+					if (this._noDebug) {
+						this.sendResponse(response);
+					} else {
+						this._attach(response, port, address, timeout);
+					}
+				} else {
+					this.sendErrorResponse(response, 2011, localize('VSND2011', "Cannot launch debug target in terminal ({0}).", '{_error}'), { _error: runResponse.message } );
+					this._terminated('terminal error: ' + runResponse.message);
+				}
+			});
+
+		} else {
+
+			this._sendLaunchCommandToConsole(launchArgs);
+
+			// merge environment variables into a copy of the process.env
+			envVars = PathUtils.extendObject(PathUtils.extendObject( {}, process.env), envVars);
+
+			const options = {
+				cwd: workingDirectory,
+				env: envVars
+			};
+
+			const nodeProcess = CP.spawn(runtimeExecutable, launchArgs.slice(1), options);
+			nodeProcess.on('error', (error) => {
+				this.sendErrorResponse(response, 2017, localize('VSND2017', "Cannot launch debug target ({0}).", '{_error}'), { _error: error.message }, ErrorDestination.Telemetry | ErrorDestination.User );
+				this._terminated(`failed to launch target (${error})`);
+			});
+			nodeProcess.on('exit', () => {
+				this._terminated('target exited');
+			});
+			nodeProcess.on('close', (code) => {
+				this._terminated('target closed');
+			});
+
+			this._nodeProcessId = nodeProcess.pid;
+
+			this._captureOutput(nodeProcess);
+
+			if (this._noDebug) {
+				this.sendResponse(response);
+			} else {
+				this._attach(response, port, address, timeout);
+			}
 		}
 	}
 

@@ -363,6 +363,10 @@ declare interface ScriptProperty{
      */
     Name: string;
     /**
+     * Родительское свойство
+     */
+    Owner: ScriptProperty;
+    /**
      * Разрешить редактирование имени (для создания таблиц)
      */
     NameEditable: boolean;
@@ -776,11 +780,11 @@ declare interface ScriptForm{
      * Показать форму
      * @param WindowPos
      */
-    Show(WindowPos: WindowPosition);
+    Show(WindowPos?: WindowPosition);
     /**
      * Показать модальную форму
      */
-    ShowModal: boolean;
+    ShowModal(): boolean;
     /**
      * Заголовок формы
      */
@@ -1246,7 +1250,7 @@ declare interface Object3 extends Object{
      * Получить список общего крепежа на двух панелях
      * @param Obj
      */
-    FindConnectedFasteners(Obj: Object3): Array<Object3>;
+    FindConnectedFasteners(Obj?: Object3): Array<Object3>;
     /**
      * Получить список объектов, соединяемых этим крепежом
      */
