@@ -35,6 +35,7 @@ function addDefintionFiles(){
 			fs.mkdirSync(join(typesPath, '/node'));
 		};
 		fs.writeFileSync(join(typesPath, '/bazis/index.d.ts'), fs.readFileSync(join(extensionPath,'/bazis.d.ts')));
+		fs.writeFileSync(join(typesPath, '/bazis/experimental.d.ts'), fs.readFileSync(join(extensionPath,'/experimental.d.ts')));
 		if (!fs.existsSync(join(typesPath, '/node/index.d.ts'))){
 			fs.writeFileSync(join(typesPath, '/node/index.d.ts'), fs.readFileSync(join(extensionPath, '/node.d.ts')));
 		}
