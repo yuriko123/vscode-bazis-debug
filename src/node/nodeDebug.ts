@@ -1397,7 +1397,8 @@ export class NodeDebugSession extends DebugSession {
 				this._node.stop();
 
 			} else {
-
+				////this command stops script execution in Bazis application - Letos
+				this._node.evaluate({expression: 'Action.Cancel()'});
 				this._node.command('disconnect'); // we don't wait for reponse
 				// stop socket connection (otherwise node.js dies with ECONNRESET on Windows)
 				this._node.stop();
