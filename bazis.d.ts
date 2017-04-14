@@ -3,14 +3,14 @@
 declare interface System {
     /**
      * Вывести диагностическое сообщение (для отладки?)
-     * @param str сообщение 
+     * @param str сообщение
      */
     log(str: string);
     /**
      * Подключить указанный файл
      */
     include(filename: string);
-    /** 
+    /**
      * Возвращает true, если файл существует
      * @deprecated используйте fs.existsSync
      * @param filename путь к файлу
@@ -98,7 +98,7 @@ declare interface Model3D extends List3D {
     /**
      * Выделенный объект модели
      */
-    Selected: Object3; 
+    Selected: Object3;
     /**
      * Количество выделенных элементов
      */
@@ -118,7 +118,7 @@ declare interface Model3D extends List3D {
 
 }
 
-declare interface Action3D{
+declare interface Action3D {
     /**
      * Если false, то запрещены любые функции взаимодействия с пользователем
      */
@@ -267,7 +267,7 @@ declare interface Action3D{
     //SaveProject(filename: string, project: ProjectFile);
 }
 
-declare interface ScriptMenu{
+declare interface ScriptMenu {
     /**
      * Имя свойства
      */
@@ -294,7 +294,7 @@ declare interface ScriptMenu{
     Store: boolean;
     /**
      * Сохранить введенные пользователем данные в файле xml
-     * @param filename 
+     * @param filename
      */
     Save(filename: string);
     /**
@@ -330,7 +330,7 @@ declare interface ScriptMenu{
 
 }
 
-declare interface PropertyLayout{
+declare interface PropertyLayout {
     /**
      * Левая граница
      */
@@ -358,7 +358,7 @@ declare interface PropertyLayout{
 
 }
 
-declare interface ScriptProperty{
+declare interface ScriptProperty {
     /**
      * Имя свойства
      */
@@ -457,8 +457,8 @@ declare interface ScriptProperty{
      * Задать расположение свойства на форме
      * @param  L Отступ от левого края родительского объекта
      * @param  T Отступ от верхнего края родительского объекта
-     * @param  W Ширина 
-     * @param  H Высота 
+     * @param  W Ширина
+     * @param  H Высота
      */
     SetLayout(L: number, T: number, W: number, H: number);
     /**
@@ -470,7 +470,7 @@ declare interface ScriptProperty{
      */
     AlignWithMargins: boolean;
     /**
-     * Отступы между компонентами 
+     * Отступы между компонентами
      * @param  L Отступ слева
      * @param  R Отступ справа
      * @param  T Отступ сверху
@@ -695,7 +695,7 @@ declare enum ErrorType {
 
 }
 
-declare interface InspectorError{
+declare interface InspectorError {
     /**
      * Тип ошибки
      */
@@ -719,7 +719,7 @@ declare interface InspectorError{
 
 }
 
-declare interface InspectorOptions{
+declare interface InspectorOptions {
     /**
      * Проверка пересечения объектов
      */
@@ -755,7 +755,7 @@ declare interface InspectorOptions{
 
 }
 
-declare interface ModelInspector{
+declare interface ModelInspector {
     /**
      * Проверить модель
      * @param Model
@@ -772,7 +772,7 @@ declare interface ModelInspector{
 
 }
 
-declare interface ScriptForm{
+declare interface ScriptForm {
     /**
      * Набор редактируемых свойств
      */
@@ -865,7 +865,7 @@ declare interface ScriptForm{
 
 }
 
-declare interface ScriptParamFastenerDB{
+declare interface ScriptParamFastenerDB {
     /**
      * Загрузить базу из файла
      * @param  filename
@@ -886,53 +886,53 @@ declare interface ScriptParamFastenerDB{
 
 declare interface ScriptGroupProperty extends ScriptProperty {
     /**
-     * 
+     *
      */
     Image: string;
     /**
-     * 
+     *
      */
     MaxHeight: number;
 
 }
 
-declare interface ScriptStringProperty extends ScriptProperty{
+declare interface ScriptStringProperty extends ScriptProperty {
     /**
-     * 
+     *
      */
     Value: string;
 
 }
 
-declare interface ScriptBooleanProperty extends ScriptProperty{
+declare interface ScriptBooleanProperty extends ScriptProperty {
     /**
-     * 
+     *
      */
     Value: boolean;
 
 }
 
-declare interface ScriptNumberProperty extends ScriptProperty{
+declare interface ScriptNumberProperty extends ScriptProperty {
     /**
-     * 
+     *
      */
     MinValue: number;
     /**
-     * 
+     *
      */
     MaxValue: number;
     /**
-     * 
+     *
      */
     Value: number;
     /**
-     * 
+     *
      */
     ValueStep: number;
 
 }
 
-declare interface ScriptButtonProperty extends ScriptProperty{
+declare interface ScriptButtonProperty extends ScriptProperty {
     /**
      * Обработчик нажатия на кнопку
      */
@@ -940,9 +940,9 @@ declare interface ScriptButtonProperty extends ScriptProperty{
 
 }
 
-declare interface ScriptSelectorProperty extends ScriptProperty{
+declare interface ScriptSelectorProperty extends ScriptProperty {
     /**
-     * 
+     *
      */
     Value: string;
     /**
@@ -952,9 +952,9 @@ declare interface ScriptSelectorProperty extends ScriptProperty{
 
 }
 
-declare interface ScriptComboProperty extends ScriptProperty{
+declare interface ScriptComboProperty extends ScriptProperty {
     /**
-     * 
+     *
      */
     ItemIndex: number;
     /**
@@ -963,19 +963,19 @@ declare interface ScriptComboProperty extends ScriptProperty{
      */
     AddItem(item: string);
     /**
-     * 
+     *
      */
     Value: string;
 
 }
 
-declare interface ScriptMaterialProperty extends ScriptProperty{
+declare interface ScriptMaterialProperty extends ScriptProperty {
     /**
-     * 
+     *
      */
     Thickness: number;
     /**
-     * 
+     *
      */
     Width: number;
     /**
@@ -985,7 +985,7 @@ declare interface ScriptMaterialProperty extends ScriptProperty{
 
 }
 
-declare interface ScriptButtProperty extends ScriptProperty{
+declare interface ScriptButtProperty extends ScriptProperty {
     /**
      * Толщина кромки
      */
@@ -1001,47 +1001,47 @@ declare interface ScriptButtProperty extends ScriptProperty{
 
 }
 
-declare interface ScriptFurnitureProperty extends ScriptProperty{
+declare interface ScriptFurnitureProperty extends ScriptProperty {
     /**
-     * 
+     *
      */
     Value: InfFurniture;
 
 }
 
-declare interface ScriptColorProperty extends ScriptProperty{
+declare interface ScriptColorProperty extends ScriptProperty {
     /**
-     * 
+     *
      */
     Value: number;
 
 }
 
-declare interface Undo3D{
+declare interface Undo3D {
     /**
-     * 
+     *
      * @param obj
      */
     Changing(obj: Object3);
     /**
-     * 
+     *
      * @param obj
      */
     RecursiveChanging(obj: Object3);
 
 }
 
-declare interface FurnMaterial{
+declare interface FurnMaterial {
     /**
-     * 
+     *
      */
     Name: string;
     /**
-     * 
+     *
      */
     Thickness: number;
     /**
-     * 
+     *
      */
     Width: number;
     /**
@@ -1053,35 +1053,35 @@ declare interface FurnMaterial{
 
 }
 
-declare interface Vector{
+declare interface Vector {
     /**
-     * 
+     *
      */
     x: number;
     /**
-     * 
+     *
      */
     y: number;
     /**
-     * 
+     *
      */
     z: number;
 
 }
 
-declare interface Point{
+declare interface Point {
     /**
-     * 
+     *
      */
     x: number;
     /**
-     * 
+     *
      */
     y: number;
 
 }
 
-declare interface Edge3{
+declare interface Edge3 {
     /**
      * Начало ребра в ЛСК
      */
@@ -1101,7 +1101,7 @@ declare interface Edge3{
 
 }
 
-declare interface Object3 extends Object{
+declare interface Object3 extends Object {
     /**
      * Наименование
      */
@@ -1165,17 +1165,17 @@ declare interface Object3 extends Object{
     Translate(dir: Vector);
     /**
      * Повернуть вокруг заданной оси
-     * @param axis 
+     * @param axis
      * @param angle Угол (в градусах)
      */
     Rotate(axis: Vector, angle: number);
     /**
-     * 
+     *
      * @param dir Вектор смещения
      */
     TranslateGCS(dir: Vector);
     /**
-     * 
+     *
      * @param axis
      * @param angle Угол (в градусах)
      */
@@ -1202,7 +1202,7 @@ declare interface Object3 extends Object{
      */
     Orient(axisz: Vector, axisy: Vector);
     /**
-     * 
+     *
      * @param axisz
      * @param axisy
      */
@@ -1275,7 +1275,7 @@ declare interface Object3 extends Object{
 
 }
 
-declare interface List3D extends Object3{
+declare interface List3D extends Object3 {
     /**
      * Количество объектов в структуре
      */
@@ -1306,7 +1306,7 @@ declare interface List3D extends Object3{
 
 }
 
-declare interface Panel extends Object3{
+declare interface Panel extends Object3 {
     /**
      * Контур панели
      */
@@ -1360,7 +1360,7 @@ declare interface Panel extends Object3{
     /**
      * Накатать кромку на элемент
      * @param material
-     * @param elem 
+     * @param elem
      */
     AddButt(material, elem): PanelButt;
     /**
@@ -1377,7 +1377,7 @@ declare interface Panel extends Object3{
 
 }
 
-declare interface Extrusion extends Object3{
+declare interface Extrusion extends Object3 {
     /**
      * Контур профиля
      */
@@ -1403,17 +1403,17 @@ declare interface Extrusion extends Object3{
 
 }
 
-declare interface Trajectory extends Object3{
+declare interface Trajectory extends Object3 {
     /**
-     * 
+     *
      */
     Contour2D: Contour2D;
     /**
-     * 
+     *
      */
     Trajectory2D: Contour2D;
     /**
-     * 
+     *
      */
     MaterialName: string;
     /**
@@ -1423,9 +1423,9 @@ declare interface Trajectory extends Object3{
 
 }
 
-declare interface Block extends List3D{
+declare interface Block extends List3D {
     /**
-     * 
+     *
      */
     AnimType: AnimationType;
     /**
@@ -1435,15 +1435,15 @@ declare interface Block extends List3D{
 
 }
 
-declare interface Assembly extends List3D{
+declare interface Assembly extends List3D {
     /**
-     * 
+     *
      */
     AnimType: AnimationType;
 
 }
 
-declare interface Contour3D extends Object3{
+declare interface Contour3D extends Object3 {
     /**
      * Элементы вспомогательного контура
      */
@@ -1451,7 +1451,7 @@ declare interface Contour3D extends Object3{
 
 }
 
-declare interface Size3D extends Object3{
+declare interface Size3D extends Object3 {
     /**
      * Перестроить по точкам
      * @param Pos1
@@ -1541,93 +1541,93 @@ declare enum TextureOrientation {
 
 }
 
-declare interface PanelButts{
+declare interface PanelButts {
     /**
-     * 
+     *
      */
     Add(): PanelButt;
     /**
-     * 
+     *
      */
     Count: number;
     /**
-     * 
+     *
      */
     Butts: Array<PanelButt>;
 
 }
 
-declare interface PanelButt{
+declare interface PanelButt {
     /**
-     * 
+     *
      */
     ElemIndex: number;
     /**
-     * 
+     *
      */
     Sign: string;
     /**
-     * 
+     *
      */
     Material: string;
     /**
-     * 
+     *
      */
     Thickness: number;
 
 }
 
-declare interface PanelPlastics{
+declare interface PanelPlastics {
     /**
-     * 
+     *
      */
     Add(): PanelPlastic;
     /**
-     * 
+     *
      */
     Count: number;
     /**
-     * 
+     *
      */
     Plastics: Array<PanelPlastic>;
 
 }
 
-declare interface PanelPlastic{
+declare interface PanelPlastic {
     /**
-     * 
+     *
      */
     Material: string;
     /**
-     * 
+     *
      */
     Thickness: number;
     /**
-     * 
+     *
      */
     TextureOrientation: TextureOrientation;
 
 }
 
-declare interface PanelCuts{
+declare interface PanelCuts {
     /**
-     * 
+     *
      */
     Add(): PanelCut;
     /**
-     * 
+     *
      */
     Count: number;
     /**
-     * 
+     *
      */
     Cuts: Array<PanelCut>;
 
 }
 
-declare interface PanelCut{
+declare interface PanelCut {
     /**
-     * 
+     *
      */
     Name: string;
     /**
@@ -1645,7 +1645,7 @@ declare interface PanelCut{
 
 }
 
-declare interface Contour2D{
+declare interface Contour2D {
     /**
      * Количество элементов контура
      */
@@ -1732,11 +1732,11 @@ declare interface Contour2D{
     AddArc3(p1: Point, p2: Point, p3: Point): Object;
     /**
      * Добавить эквидистанту контура. Последние 2 параметры отвечают за направление и скругление
-     * @param contour 
+     * @param contour
      * @param offset
      * @param Side
      * @param Rounding
-     * @param Pos 
+     * @param Pos
      */
     AddEquidistant(contour: Contour2D, offset: number, Side: boolean, Rounding: boolean, Pos?: Point);
     /**
@@ -1765,7 +1765,7 @@ declare interface Contour2D{
      * @param l1
      * @param l2
      */
-    FacetEx(elem1, elem2, l1: number, l2?:number): Object;
+    FacetEx(elem1, elem2, l1: number, l2?: number): Object;
     /**
      * Скругление в указанной точке
      * @param x
@@ -1845,7 +1845,7 @@ declare interface Contour2D{
 
 }
 
-declare interface Geometry2D{
+declare interface Geometry2D {
     /**
      * Вычислить точки пересечения двухмерных элементов
      * @param elem1
@@ -1872,21 +1872,21 @@ declare interface Geometry2D{
 
 }
 
-declare interface InControl{
+declare interface InControl {
     /**
-     * 
+     *
      */
     id: number;
     /**
-     * 
+     *
      */
     Enabled: boolean;
     /**
-     * 
+     *
      */
     Visible: boolean;
     /**
-     * 
+     *
      */
     Hint: string;
     /**
@@ -1896,62 +1896,62 @@ declare interface InControl{
 
 }
 
-declare interface InButton extends InControl{
+declare interface InButton extends InControl {
     /**
      * Создать подменю
      * @param caption
      */
     NewSubMenu(caption: string): InButton;
     /**
-     * 
+     *
      */
     Combo: boolean;
 
 }
 
-declare interface InFloat extends InControl{
+declare interface InFloat extends InControl {
     /**
-     * 
+     *
      */
     Value: number;
     /**
-     * 
+     *
      */
     ReadOnly: boolean;
     /**
-     * 
+     *
      */
     Fixed: boolean;
 
 }
 
-declare interface InNumber extends InControl{
+declare interface InNumber extends InControl {
     /**
-     * 
+     *
      */
     Value: number;
     /**
-     * 
+     *
      */
     ReadOnly: boolean;
     /**
-     * 
+     *
      */
     Fixed: boolean;
 
 }
 
-declare interface InMaterial extends InControl{
+declare interface InMaterial extends InControl {
     /**
-     * 
+     *
      */
     Name: string;
     /**
-     * 
+     *
      */
     Thickness: number;
     /**
-     * 
+     *
      */
     Width: number;
     /**
@@ -1966,39 +1966,39 @@ declare interface InMaterial extends InControl{
 
 }
 
-declare interface InButtMaterial extends InControl{
+declare interface InButtMaterial extends InControl {
     /**
-     * 
+     *
      */
     Name: string;
     /**
-     * 
+     *
      */
     Sign: string;
     /**
-     * 
+     *
      */
     Thickness: number;
     /**
-     * 
+     *
      */
     Width: number;
     /**
-     * 
+     *
      */
     Overhung: number;
     /**
-     * 
+     *
      */
     Allowance: number;
     /**
-     * 
+     *
      */
     ClipPanel: boolean;
 
 }
 
-declare interface InFurniture extends InControl{
+declare interface InFurniture extends InControl {
     /**
      * Установить крепеж между двух панелей
      * @param panel1
@@ -2017,10 +2017,9 @@ declare interface InFurniture extends InControl{
      * @param angle Угол (в градусах)
      */
     Mount1(panel: Panel, x: number, y: number, z: number, angle: number): Object3;
-
 }
 
-declare interface InfFurniture{
+declare interface InfFurniture {
     /**
      * Установить крепеж между двух панелей
      * @param panel1
@@ -2039,16 +2038,15 @@ declare interface InfFurniture{
      * @param angle Угол (В градусах)
      */
     Mount1(panel: Panel, x: number, y: number, z: number, angle: number): Object3;
-
 }
 
-declare interface DoorsMaker{
+declare interface DoorsMaker {
     /**
-     * 
+     *
      */
     Silent: boolean;
     /**
-     * 
+     *
      */
     ShowErrors: boolean;
     /**
@@ -2072,9 +2070,9 @@ declare interface DoorsMaker{
 
 }
 
-declare interface BoxesMaker{
+declare interface BoxesMaker {
     /**
-     * 
+     *
      */
     ShowErrors: boolean;
     /**
@@ -2094,11 +2092,11 @@ declare interface BoxesMaker{
      * @param TopObject Верхняя граница (Панель или ребро)
      * @param BottomObject Нижняя граница (Панель или ребро)
      */
-    Setup(LeftObject: Panel, RightObject:Panel, TopObject: Panel | Edge3, BottomObject: Panel | Edge3);
+    Setup(LeftObject: Panel, RightObject: Panel, TopObject: Panel | Edge3, BottomObject: Panel | Edge3);
 
 }
 
-declare interface ScItemTovar{
+declare interface ScItemTovar {
     /**
      * Артикул элемента товара
      */
@@ -2126,7 +2124,7 @@ declare interface ScItemTovar{
 
 }
 
-declare interface ScItemTovarList{
+declare interface ScItemTovarList {
     /**
      * Доступ к элементу товара по индексу
      * @param [index]
@@ -2153,13 +2151,13 @@ declare interface ScItemTovarList{
 
 
 
-declare interface Arguments extends Object{
+declare interface Arguments extends Object {
     /**
-     * 
+     *
      */
     callee: Function;
     /**
-     * 
+     *
      */
     length: number;
 
@@ -2201,32 +2199,32 @@ declare function NewForm(): ScriptForm;
 declare function NewParamFastenerDB(): ScriptParamFastenerDB;
 
 /**
- * 
+ *
  */
 declare var AxisX: Vector;
 
 /**
- * 
+ *
  */
 declare var AxisY: Vector;
 
 /**
- * 
+ *
  */
 declare var AxisZ: Vector;
 
 /**
- * 
+ *
  */
 declare var Axis_X: Vector;
 
 /**
- * 
+ *
  */
 declare var Axis_Y: Vector;
 
 /**
- * 
+ *
  */
 declare var Axis_Z: Vector;
 
@@ -2406,7 +2404,7 @@ declare function AddCopy(obj: Object3): Object3;
 /**
  * Создать симметричную копию объекта
  * @param obj
- * @param  pos 
+ * @param  pos
  * @param  normal
  */
 declare function AddSymmetry(obj: string, pos: Vector, normal: Vector): Object3;
@@ -2525,4 +2523,3 @@ declare function NewBoxesMaker(caption: string): BoxesMaker;
  * Список элементов товара. Только для Салона
  */
 declare var TovarItems: ScItemTovarList;
-
