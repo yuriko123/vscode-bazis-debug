@@ -22,6 +22,11 @@ declare interface System {
      */
     askFileName(extension: string): string;
     /**
+     * Открыть диалог выбора папки
+     * @param caption заголовок папки
+     */
+    askFolder(caption?: string): string;
+    /**
      * Записать текст в файл
      * @deprecated используйте fs.writeFileSync
      * @param filename путь к файлу
@@ -115,7 +120,10 @@ declare interface Model3D extends List3D {
      * Список объектов модели
      */
     Objects: Array<Object3>;
-
+    /**
+     * Выполнить функцию для каждой панели
+     */
+    forEachPanel(callbackfn: (panel: Panel) => void): void;
 }
 
 declare interface Action3D {
@@ -2139,6 +2147,10 @@ declare interface ScItemTovarList {
      */
     TovarName: string;
     /**
+     * Артикул товара
+     */
+    TovarArticul: string;
+    /**
      * Найти элемент товара по имени
      * @param name
      * @param CaseSensitive
@@ -2518,6 +2530,8 @@ declare function NewDoorsMaker(caption: string): DoorsMaker;
  * @param caption
  */
 declare function NewBoxesMaker(caption: string): BoxesMaker;
+
+declare function FormatMatName(matName: string): string;
 
 /**
  * Список элементов товара. Только для Салона

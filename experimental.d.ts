@@ -51,6 +51,7 @@ interface Action3D {
      * Возвращает ребро, на которое указывает курсор мыши;
      */
     Edge: Edge3;
+    MousePos: Point2;
 }
 
 declare function NewValueEditor(value?: number): ValueEditor;
@@ -60,6 +61,7 @@ declare interface JointInfo {
     Object2: Object3,
     JointType: number,
     DrawLines(): void;
+    SetEdgesOwner(newOwner: List3D): void;
 }
 
 
@@ -99,6 +101,10 @@ declare interface AdvancedJoint {
     Mount(TempScheme?): boolean;
 }
 
+interface Model3D{
+    DS: Designer;
+}
+
 declare function NewAdvancedJoint(Info: JointInfo): AdvancedJoint;
 
 declare interface FurnitureInfo {
@@ -124,4 +130,18 @@ interface InfFurniture{
 
     GetInfo(): FurnitureInfo;
 
+}
+
+declare interface Designer{
+    Render: Renderer;
+    FindEdge(Root: Object3, CursorPos: Point2, SearchDistance: number): Edge3; overload;
+}
+
+declare interface Renderer{
+
+}
+
+declare interface Point2{
+    X: number;
+    Y: number;
 }
