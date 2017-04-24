@@ -1430,11 +1430,14 @@ declare interface Trajectory extends Object3 {
 
 }
 
-declare interface Block extends List3D {
+declare interface AnimBlock extends List3D{
     /**
      * Тип анимации
      */
     AnimType: AnimationType;
+}
+
+declare interface Block extends AnimBlock {
     /**
      * Флаг составной фурнитуры
      */
@@ -1442,12 +1445,7 @@ declare interface Block extends List3D {
 
 }
 
-declare interface Assembly extends List3D {
-    /**
-     * Тип анимации
-     */
-    AnimType: AnimationType;
-
+declare interface Assembly extends AnimBlock {
 }
 
 declare interface Contour3D extends Object3 {

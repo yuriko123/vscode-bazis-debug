@@ -101,6 +101,10 @@ declare interface JointInfo {
      */
     JointType: number,
     /**
+     * Базовая точка стыка
+     */
+    BasisPoint: Vector;
+    /**
      * Объект стыка
      */
     JointExtrusion: Extrusion;
