@@ -31,12 +31,24 @@ declare interface ModelTransformer {
 declare function NewModelTransformer(): ModelTransformer;
 
 /**
- *
+ * Редактор значения на экране
  */
 declare interface ValueEditor {
+    /**
+     * Отображаемое значение
+     */
     Value: number;
+    /**
+     * Видимость объекта
+     */
     Visible: boolean;
+    /**
+     * Запрет редактирования значения
+     */
     Readonly: boolean;
+    /**
+     * Позиция на экране
+     */
     Position: Point;
 }
 
@@ -45,23 +57,67 @@ interface Action3D {
      * Обработчик изменения ValueEditor
      */
     OnValueChange: Function;
+    /**
+     * Обработчик отрисовки. Предупреждение: это событие вызывается очень часто,
+     * в связи с чем не рекомендуется делать сложные вычисления,
+     * которые могут тормозить работу программы
+     */
     OnDraw: Function;
+    /**
+     * Текущий выбранный редактор значения
+     */
     ValueEditor: ValueEditor;
     /**
-     * Возвращает ребро, на которое указывает курсор мыши;
+     * Возвращает ребро, на которое указывает курсор мыши
      */
     Edge: Edge3;
+    /**
+     * Позиция курсора
+     */
     MousePos: Point2;
+    /**
+     * Загрузить проект из файла
+     */
+    LoadProject(filename: string): ProjectFile;
+    /**
+     * Сохранить проект в файл
+     */
+    SaveProject(filename: string, project: ProjectFile);
 }
 
 declare function NewValueEditor(value?: number): ValueEditor;
 
 declare interface JointInfo {
+    /**
+     * Первый объект стыка
+     */
     Object1: Object3,
+    /**
+     * Второй обЪект стыка
+     */
     Object2: Object3,
+    /**
+     * Тип стыка
+     */
     JointType: number,
-    DrawLines(): void;
+    /**
+     * Объект стыка
+     */
+    JointExtrusion: Extrusion;
+    /**
+     * Отрисовка стыка.
+     * @param Color цвет стыка
+     * @param linesOnly рисовать только линии
+     */
+    Draw(Color: number, linesOnly?: boolean): void;
     SetEdgesOwner(newOwner: List3D): void;
+    /**
+     * проверка пересечения объекта стыка с лучом на экране. Результат - дистанция до стыка.
+     * Если пересечения нет, возвращает -1
+     * @param x
+     * @param y
+     */
+    RayIntersect(x: number, y: number): number;
 }
 
 
@@ -101,13 +157,25 @@ declare interface AdvancedJoint {
     Mount(TempScheme?): boolean;
 }
 
-interface Model3D{
+
+declare interface ProjectFile {
+    Items: Array<ProjectFile>;
+    Count: number;
+    Name: string;
+    FullName: string;
+    IsFileProject: boolean;
+}
+
+interface Model3D {
     DS: Designer;
 }
 
 declare function NewAdvancedJoint(Info: JointInfo): AdvancedJoint;
 
 declare interface FurnitureInfo {
+    /**
+     * Параметры крепежа
+     */
     Params: ParamFastener;
 }
 
@@ -116,32 +184,45 @@ declare interface ParamFastener {
      * способ базирования крепежа
      */
     DatumMode;
+    /**
+     * Имя крепежа
+     */
     Name: string;
+    /**
+     * Толщина первого объекта
+     */
     Thickness1: number;
+    /**
+     * Толщина второго объекта
+     */
     Thickness2: number;
     IsValid(): boolean;
 }
 
-interface InFurniture{
+interface InFurniture {
     FurnInfo: InfFurniture;
 }
 
-interface InfFurniture{
-
+interface InfFurniture {
     GetInfo(): FurnitureInfo;
-
 }
 
-declare interface Designer{
+declare interface Designer {
     Render: Renderer;
-    FindEdge(Root: Object3, CursorPos: Point2, SearchDistance: number): Edge3; overload;
+    /**
+     * Найти ребро по текйщей позиции на экране
+     * @param Root Объект, среди ребер которого будет производиться поиск
+     * @param CursorPos Позиция на экране
+     * @param SearchDistance Погрешность (отступ от ребра) при поиске (в мм)
+     */
+    FindEdge(Root: Object3, CursorPos: Point2, SearchDistance: number): Edge3;
 }
 
-declare interface Renderer{
+declare interface Renderer {
 
 }
 
-declare interface Point2{
+declare interface Point2 {
     X: number;
     Y: number;
 }

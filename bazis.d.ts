@@ -1,3 +1,6 @@
+// Ссылка на файл с дополнительными определениями для экспериментальных функций.
+// По умолчанию, данный файл не подключается к автодополнению.
+// Для подключения данного файла, ссылка на него должна начинаться с тройного слэша (///)
 //// <reference path="./experimental.d.ts" />
 
 declare interface System {
@@ -79,14 +82,6 @@ declare interface IDispatch {
 
 }
 
-/*declare interface ProjectFile{
-    Items: Array<ProjectFile>;
-    Count: number;
-    Name: string;
-    FullName: string;
-    IsFileProject: boolean;
-}*/
-
 declare interface Model3D extends List3D {
     /**
      * Размер модели
@@ -124,6 +119,14 @@ declare interface Model3D extends List3D {
      * Выполнить функцию для каждой панели
      */
     forEachPanel(callbackfn: (panel: Panel) => void): void;
+    /**
+     * Выполнить функцию для каждого объекта модели
+     */
+    forEach(callbackfn: (obj: Object3) => void): void;
+    /**
+     * Снять выделение со всех объектов
+     */
+    UnSelectAll(): void;
 }
 
 declare interface Action3D {
@@ -153,11 +156,11 @@ declare interface Action3D {
      */
     AsyncExec(func: Function);
     /**
-     * Позиция курсора
+     * Позиция курсора X
      */
     MouseX: number;
     /**
-     * Позиция курсора
+     * Позиция курсора Y
      */
     MouseY: number;
     /**
@@ -265,14 +268,6 @@ declare interface Action3D {
      * Сохранить модель в файл
      */
     SaveModel(filename: string);
-    /**
-     * Загрузить проект из файла
-     */
-    //LoadProject(filename: string): ProjectFile;
-    /**
-     * Сохранить проект в файл
-     */
-    //SaveProject(filename: string, project: ProjectFile);
 }
 
 declare interface ScriptMenu {
@@ -554,7 +549,7 @@ declare interface ScriptProperty {
     /**
      * Создать разделитель
      */
-    NewSeparator: ScriptProperty;
+    NewSeparator(): ScriptProperty;
     /**
      * Создать надпись
      * @param caption Название свойства
@@ -642,6 +637,7 @@ declare enum WindowPosition {
 
 /**
  * Позиция фурнитуры при установке крепежа
+ * @deprecated
  */
 // declare enum FurniturePosition {
 //     /**
@@ -894,11 +890,11 @@ declare interface ScriptParamFastenerDB {
 
 declare interface ScriptGroupProperty extends ScriptProperty {
     /**
-     *
+     * Путь к изображению
      */
     Image: string;
     /**
-     *
+     * Максимальная высота
      */
     MaxHeight: number;
 
@@ -906,7 +902,7 @@ declare interface ScriptGroupProperty extends ScriptProperty {
 
 declare interface ScriptStringProperty extends ScriptProperty {
     /**
-     *
+     * Значение свойства
      */
     Value: string;
 
@@ -914,7 +910,7 @@ declare interface ScriptStringProperty extends ScriptProperty {
 
 declare interface ScriptBooleanProperty extends ScriptProperty {
     /**
-     *
+     * Значение свойства
      */
     Value: boolean;
 
@@ -922,19 +918,19 @@ declare interface ScriptBooleanProperty extends ScriptProperty {
 
 declare interface ScriptNumberProperty extends ScriptProperty {
     /**
-     *
+     * Минимальное значение свойства
      */
     MinValue: number;
     /**
-     *
+     * Максимальное значение свойства
      */
     MaxValue: number;
     /**
-     *
+     * Значение свойства
      */
     Value: number;
     /**
-     *
+     * Шаг изменения значения (при заданных минимальном и максимальном значениях)
      */
     ValueStep: number;
 
@@ -950,7 +946,7 @@ declare interface ScriptButtonProperty extends ScriptProperty {
 
 declare interface ScriptSelectorProperty extends ScriptProperty {
     /**
-     *
+     * Значение свойства
      */
     Value: string;
     /**
@@ -962,7 +958,7 @@ declare interface ScriptSelectorProperty extends ScriptProperty {
 
 declare interface ScriptComboProperty extends ScriptProperty {
     /**
-     *
+     * Индекс текущего значения в списке
      */
     ItemIndex: number;
     /**
@@ -971,7 +967,7 @@ declare interface ScriptComboProperty extends ScriptProperty {
      */
     AddItem(item: string);
     /**
-     *
+     * Текущее значение в списке
      */
     Value: string;
 
@@ -979,11 +975,11 @@ declare interface ScriptComboProperty extends ScriptProperty {
 
 declare interface ScriptMaterialProperty extends ScriptProperty {
     /**
-     *
+     * Толщина материала
      */
     Thickness: number;
     /**
-     *
+     * Ширина материала
      */
     Width: number;
     /**
@@ -1011,15 +1007,18 @@ declare interface ScriptButtProperty extends ScriptProperty {
 
 declare interface ScriptFurnitureProperty extends ScriptProperty {
     /**
-     *
+     * Значение свойства
      */
     Value: InfFurniture;
-
+    /**
+     * Очистить значение
+     */
+    ClearValue(): void;
 }
 
 declare interface ScriptColorProperty extends ScriptProperty {
     /**
-     *
+     * Значение свойства
      */
     Value: number;
 
@@ -1027,12 +1026,12 @@ declare interface ScriptColorProperty extends ScriptProperty {
 
 declare interface Undo3D {
     /**
-     *
+     * Начать запись изменений объекта
      * @param obj
      */
     Changing(obj: Object3);
     /**
-     *
+     * Начать запись изменений объекта и его составляющих
      * @param obj
      */
     RecursiveChanging(obj: Object3);
@@ -1041,21 +1040,21 @@ declare interface Undo3D {
 
 declare interface FurnMaterial {
     /**
-     *
+     * Наименование материала
      */
     Name: string;
     /**
-     *
+     * Толщина материала
      */
     Thickness: number;
     /**
-     *
+     * Ширина материала
      */
     Width: number;
     /**
      * Создать материал из наименования и толщины (ширины)
-     * @param name
-     * @param thick
+     * @param name Наименование материала
+     * @param thick Толщина материала
      */
     Make(name: string, thick: number);
 
@@ -1063,15 +1062,15 @@ declare interface FurnMaterial {
 
 declare interface Vector {
     /**
-     *
+     * Координата X
      */
     x: number;
     /**
-     *
+     * Координата Y
      */
     y: number;
     /**
-     *
+     * Координата Z
      */
     z: number;
 
@@ -1079,11 +1078,11 @@ declare interface Vector {
 
 declare interface Point {
     /**
-     *
+     * Координата Х
      */
     x: number;
     /**
-     *
+     * Координата Y
      */
     y: number;
 
@@ -1173,18 +1172,18 @@ declare interface Object3 extends Object {
     Translate(dir: Vector);
     /**
      * Повернуть вокруг заданной оси
-     * @param axis
+     * @param axis Ось поворота
      * @param angle Угол (в градусах)
      */
     Rotate(axis: Vector, angle: number);
     /**
-     *
+     * Переместить объект относительно глобальной системы координат
      * @param dir Вектор смещения
      */
     TranslateGCS(dir: Vector);
     /**
-     *
-     * @param axis
+     * Повернуть объект относительно глобальной системы координат
+     * @param axis Ось поворота
      * @param angle Угол (в градусах)
      */
     RotateGCS(axis: Vector, angle: number);
@@ -1205,34 +1204,34 @@ declare interface Object3 extends Object {
     RotateZ(angle: number);
     /**
      * Развернуть объект вдоль осей
-     * @param axisz
-     * @param axisy
+     * @param axisz Ось Z
+     * @param axisy Ось Y
      */
     Orient(axisz: Vector, axisy: Vector);
     /**
-     *
+     * Развернуть объект вдоль глобальных осей
      * @param axisz
      * @param axisy
      */
     OrientGCS(axisz: Vector, axisy: Vector);
     /**
      * Преобразовать точку в ЛСК объекта
-     * @param pos
+     * @param pos Координаты точки
      */
     ToObject(pos: Vector): Vector;
     /**
      * Преобразовать точку из ЛСК объекта
-     * @param pos
+     * @param pos Координаты точки
      */
     ToGlobal(pos: Vector): Vector;
     /**
      * Преобразовать нормаль в ЛСК объекта
-     * @param dir
+     * @param dir Координаты нормали
      */
     NToObject(dir: Vector): Vector;
     /**
      * Преобразовать нормаль из ЛСК объекта
-     * @param dir
+     * @param dir Координаты нормали
      */
     NToGlobal(dir: Vector): Vector;
     /**
@@ -1294,7 +1293,7 @@ declare interface List3D extends Object3 {
     Objects: Array<Object3>;
     /**
      * Найти объект по имени
-     * @param name
+     * @param name Имя объекта
      */
     Find(name: string): Object3;
     /**
@@ -1303,12 +1302,12 @@ declare interface List3D extends Object3 {
     IsElastic(): boolean;
     /**
      * Растянуть объект до требуемых размеров
-     * @param newSize
+     * @param newSize Новый размер
      */
     ElasticResize(newSize: Vector): Vector;
     /**
      * Загрузить объекты из файлов *.b3d,*.f3d
-     * @param file
+     * @param file Имя файла
      */
     Load(file: string): boolean;
 
@@ -1367,16 +1366,16 @@ declare interface Panel extends Object3 {
     IsContourRectangle: boolean;
     /**
      * Накатать кромку на элемент
-     * @param material
-     * @param elem
+     * @param material Материал кромки
+     * @param elem Элемент
      */
-    AddButt(material, elem): PanelButt;
+    AddButt(material: InMaterial | ScriptMaterialProperty, elem): PanelButt;
     /**
      * Наклеить пластик на панель
-     * @param material
+     * @param material Материал пластика
      * @param Front На лицевую пласть панели
      */
-    AddPlastic(material: InMaterial, Front: boolean): PanelPlastic;
+    AddPlastic(material: InMaterial | ScriptMaterialProperty, Front: boolean): PanelPlastic;
     /**
      * Создать новый паз
      * @param name
@@ -1404,8 +1403,8 @@ declare interface Extrusion extends Object3 {
     MaterialWidth: number;
     /**
      * Отрезать часть профиля в точке pos перпендикулярно normal
-     * @param pos
-     * @param normal
+     * @param pos Координаты точки
+     * @param normal Координаты нормали
      */
     Clip(pos: Vector, normal: Vector);
 
@@ -1413,15 +1412,15 @@ declare interface Extrusion extends Object3 {
 
 declare interface Trajectory extends Object3 {
     /**
-     *
+     * Контур
      */
     Contour2D: Contour2D;
     /**
-     *
+     * Траектория
      */
     Trajectory2D: Contour2D;
     /**
-     *
+     * Наименование материала
      */
     MaterialName: string;
     /**
@@ -1433,7 +1432,7 @@ declare interface Trajectory extends Object3 {
 
 declare interface Block extends List3D {
     /**
-     *
+     * Тип анимации
      */
     AnimType: AnimationType;
     /**
@@ -1445,7 +1444,7 @@ declare interface Block extends List3D {
 
 declare interface Assembly extends List3D {
     /**
-     *
+     * Тип анимации
      */
     AnimType: AnimationType;
 
@@ -1551,15 +1550,15 @@ declare enum TextureOrientation {
 
 declare interface PanelButts {
     /**
-     *
+     * Добавить кромку
      */
     Add(): PanelButt;
     /**
-     *
+     * Количество кромок
      */
     Count: number;
     /**
-     *
+     * Список кромок
      */
     Butts: Array<PanelButt>;
 
@@ -1567,19 +1566,19 @@ declare interface PanelButts {
 
 declare interface PanelButt {
     /**
-     *
+     * Индекс кромки
      */
     ElemIndex: number;
     /**
-     *
+     * Условное обозначение
      */
     Sign: string;
     /**
-     *
+     * Наименование материала
      */
     Material: string;
     /**
-     *
+     * Толщина кромки
      */
     Thickness: number;
 
@@ -1587,15 +1586,15 @@ declare interface PanelButt {
 
 declare interface PanelPlastics {
     /**
-     *
+     * Добавить пластик
      */
     Add(): PanelPlastic;
     /**
-     *
+     * Количество пластика
      */
     Count: number;
     /**
-     *
+     * Список
      */
     Plastics: Array<PanelPlastic>;
 
@@ -1603,15 +1602,15 @@ declare interface PanelPlastics {
 
 declare interface PanelPlastic {
     /**
-     *
+     * Наименование материала
      */
     Material: string;
     /**
-     *
+     * Толщина пластика
      */
     Thickness: number;
     /**
-     *
+     * Ориентация текстуры
      */
     TextureOrientation: TextureOrientation;
 
@@ -1619,15 +1618,15 @@ declare interface PanelPlastic {
 
 declare interface PanelCuts {
     /**
-     *
+     * Добавить паз
      */
     Add(): PanelCut;
     /**
-     *
+     * Количество пазов
      */
     Count: number;
     /**
-     *
+     * Список пазов
      */
     Cuts: Array<PanelCut>;
 
@@ -1635,7 +1634,7 @@ declare interface PanelCuts {
 
 declare interface PanelCut {
     /**
-     *
+     * Имя паза
      */
     Name: string;
     /**
@@ -1680,14 +1679,14 @@ declare interface Contour2D {
     Clear();
     /**
      * Сдвинуть все элементы
-     * @param dx
-     * @param dy
+     * @param dx Сдвиг по Х
+     * @param dy Сдвиг по Y
      */
     Move(dx: number, dy: number);
     /**
      * Повернуть вокруг точки
-     * @param x
-     * @param y
+     * @param x Координата Х
+     * @param y Координата Y
      * @param angle Угол (в градусах)
      */
     Rotate(x: number, y: number, angle: number);
@@ -1823,7 +1822,7 @@ declare interface Contour2D {
     Symmetry(x1: number, y1: number, x2: number, y2: number, Copy: boolean);
     /**
      * Загрузить контур из файла *.frw
-     * @param file
+     * @param file Имя файла
      */
     Load(file: string): boolean;
     /**
@@ -1849,7 +1848,7 @@ declare interface Contour2D {
      * Упорядочить элеметны контура в одном направлении
      * @param closet
      */
-    OrderContours(closet): boolean;
+    OrderContours(closet: boolean): boolean;
 
 }
 
@@ -1886,15 +1885,15 @@ declare interface InControl {
      */
     id: number;
     /**
-     *
+     * Разрешить изменение свойства
      */
     Enabled: boolean;
     /**
-     *
+     * Видимость свойства
      */
     Visible: boolean;
     /**
-     *
+     * Подсказка
      */
     Hint: string;
     /**
@@ -1919,11 +1918,11 @@ declare interface InButton extends InControl {
 
 declare interface InFloat extends InControl {
     /**
-     *
+     * Значение
      */
     Value: number;
     /**
-     *
+     * Только для чтения
      */
     ReadOnly: boolean;
     /**
@@ -1935,11 +1934,11 @@ declare interface InFloat extends InControl {
 
 declare interface InNumber extends InControl {
     /**
-     *
+     * Значение
      */
     Value: number;
     /**
-     *
+     * Только для чтения
      */
     ReadOnly: boolean;
     /**
@@ -1951,15 +1950,15 @@ declare interface InNumber extends InControl {
 
 declare interface InMaterial extends InControl {
     /**
-     *
+     * Наименование материала
      */
     Name: string;
     /**
-     *
+     * Толщина материала
      */
     Thickness: number;
     /**
-     *
+     * Ширина материала
      */
     Width: number;
     /**
@@ -1968,7 +1967,7 @@ declare interface InMaterial extends InControl {
     SetActive();
     /**
      * Применить материал к указанному объекту
-     * @param obj
+     * @param obj Объект
      */
     Apply(obj: Object3);
 
@@ -1976,19 +1975,19 @@ declare interface InMaterial extends InControl {
 
 declare interface InButtMaterial extends InControl {
     /**
-     *
+     * Наименование кромки
      */
     Name: string;
     /**
-     *
+     * Условное обозначение
      */
     Sign: string;
     /**
-     *
+     * Толщина кромки
      */
     Thickness: number;
     /**
-     *
+     * Ширина кромки
      */
     Width: number;
     /**
@@ -2159,17 +2158,13 @@ declare interface ScItemTovarList {
 
 }
 
-
-
-
-
 declare interface Arguments extends Object {
     /**
      *
      */
     callee: Function;
     /**
-     *
+     * Количество аргументов
      */
     length: number;
 
@@ -2211,32 +2206,32 @@ declare function NewForm(): ScriptForm;
 declare function NewParamFastenerDB(): ScriptParamFastenerDB;
 
 /**
- *
+ * Нормаль X
  */
 declare var AxisX: Vector;
 
 /**
- *
+ * Нормаль Y
  */
 declare var AxisY: Vector;
 
 /**
- *
+ * Нормаль Z
  */
 declare var AxisZ: Vector;
 
 /**
- *
+ * Нормаль -X
  */
 declare var Axis_X: Vector;
 
 /**
- *
+ * Нормаль -Y
  */
 declare var Axis_Y: Vector;
 
 /**
- *
+ * Нормаль -Z
  */
 declare var Axis_Z: Vector;
 
@@ -2272,25 +2267,25 @@ declare var Undo: Undo3D;
 
 /**
  * Вывести окно ввода строки
- * @param message
+ * @param message Текст сообщения
  */
 declare function prompt(message): string;
 
 /**
  * Вывести окно сообщения
- * @param str
+ * @param str Текст сообщения
  */
 declare function alert(str);
 
 /**
  * Показать окно подтверждения (Да/Нет)
- * @param message
+ * @param message Текст сообщения
  */
 declare function confirm(message): boolean;
 
 /**
  * Открыть фурнитуру для установки на модель
- * @param filename
+ * @param filename Имя файла
  */
 declare function OpenFurniture(filename: string): InfFurniture;
 
@@ -2317,33 +2312,33 @@ declare function SetCamera(p3d: Vector);
 
 /**
  * Запрос точки
- * @param hint
+ * @param hint Текст подсказки
  */
 declare function GetPoint(hint: string): Vector;
 
 /**
  * Запрос объекта модели
- * @param hint
+ * @param hint Текст подсказки
  */
 declare function GetObject(hint: string): Object3;
 
 /**
  * Запрос панели
- * @param hint
+ * @param hint Текст подсказки
  */
 declare function GetPanel(hint: string): Panel;
 
 /**
  * Запрос выбора ребра, параллельного указанному вектору
- * @param hint
+ * @param hint Текст подсказки
  * @param Axis
  */
 declare function GetEdge(hint: string, Axis: Vector): Edge3;
 
 /**
  * Создать панель указанных размеров
- * @param width
- * @param height
+ * @param width Ширина
+ * @param height Высота
  */
 declare function AddPanel(width: number, height: number): Panel;
 
@@ -2379,31 +2374,31 @@ declare function AddVertPanel(z1: number, y1: number, z2: number, y2: number, x:
 
 /**
  * Создать профиль
- * @param name
+ * @param name Имя объекта
  */
 declare function AddExtrusion(name: string): Extrusion;
 
 /**
  * Создать тело по траектории
- * @param name
+ * @param name Имя объекта
  */
 declare function AddTrajectory(name: string): Trajectory;
 
 /**
  * Создать мебельный блок
- * @param name
+ * @param name Имя объекта
  */
 declare function AddBlock(name: string): Block;
 
 /**
  * Создать полуфабрикат
- * @param name
+ * @param name Имя объекта
  */
 declare function AddDraftBlock(name: string): Block;
 
 /**
  * Создать мебельную сборку
- * @param name
+ * @param name Имя объекта
  */
 declare function AddAssembly(name: string): Block;
 
@@ -2453,7 +2448,7 @@ declare function StartEditing(obj: Object3): Object3;
 
 /**
  * Начать создание блока. Все созданные далее объекты попадают внутрь блока
- * @param name
+ * @param name Имя объекта
  */
 declare function BeginBlock(name: string): Block;
 
@@ -2464,7 +2459,7 @@ declare function EndBlock();
 
 /**
  * Начать создание редактируемого блока
- * @param name
+ * @param name Имя объекта
  */
 declare function BeginParametricBlock(name: string): Block;
 
@@ -2531,6 +2526,10 @@ declare function NewDoorsMaker(caption: string): DoorsMaker;
  */
 declare function NewBoxesMaker(caption: string): BoxesMaker;
 
+/**
+ * Форматировать имя материала
+ *
+ */
 declare function FormatMatName(matName: string): string;
 
 /**
