@@ -1,10 +1,10 @@
 {
   "name": "bazis-debug",
-  "displayName": "Bazis Debug",
-  "version": "1.0.0",
+  "displayName": "Базис-Отладчик",
+  "version": "0.4.3",
   "publisher": "BazisSoft",
+  "icon": "images/bazis-logo.svg",
   "description": "%extension.description%",
-  "icon": "images/node-debug-icon.svg",
   "categories": [
     "Debuggers"
   ],
@@ -31,7 +31,8 @@
     "vscode-nls": "^2.0.1",
     "request-light": "^0.1.0",
     "glob": "7.1.1",
-    "minimatch": "3.0.3"
+    "minimatch": "3.0.3",
+    "winreg": "^1.2.2"
   },
   "repository": {
     "type": "git",
@@ -62,15 +63,20 @@
     "vsce": "^1.17.0",
     "vscode": "^1.0.3",
     "vscode-debugadapter-testsupport": "^1.14.0",
-    "vscode-nls-dev": "^2.0.1",
-    "winreg": "^1.2.2"
+    "vscode-nls-dev": "^2.0.1"
   },
   "main": "./out/node/extension",
   "activationEvents": [
-    "onCommand:extension.pickNodeProcess",
-    "onCommand:extension.bazis-debug.provideInitialConfigurations"
+    "onCommand:bazis-debug.provideInitialConfigurations",
+    "*"
   ],
   "contributes": {
+    "commands":[
+      {
+        "command": "bazis-debug.addDefintionFiles",
+        "title": "Добавить/обновить файлы определений *.d.ts для Базис-Мебельщик"
+      }
+    ],
     "breakpoints": [
       {
         "language": "javascript"
@@ -88,11 +94,8 @@
         "label": "%bazis.label%",
         "program": "./out/node/nodeDebug.js",
         "runtime": "node",
-        "variables": {
-          "PickProcess": "extension.pickNodeProcess"
-        },
         "aiKey": "AIF-d9b70cd4-b9f9-4d70-929b-a071c400b217",
-        "initialConfigurations": "extension.bazis-debug.provideInitialConfigurations",
+        "initialConfigurations": "bazis-debug.provideInitialConfigurations",
         "configurationSnippets": [
           {
             "label": "%bazis.snippet.launch.label%",
@@ -101,8 +104,7 @@
               "type": "bazis",
               "request": "launch",
               "name": "${2:Launch Program}",
-              "program": "\\${file}",
-              "cwd": "\\${workspaceRoot}"
+              "program": "^\"\\${file}\""
             }
           }
         ],
@@ -114,7 +116,8 @@
             "properties": {
               "program": {
                 "type": "string",
-                "description": "%bazis.launch.program.description%"
+                "description": "%bazis.launch.program.description%",
+                "default": "${file}"
               },
               "stopOnEntry": {
                 "type": "boolean",
@@ -128,11 +131,6 @@
                   "type": "string"
                 },
                 "default": []
-              },
-              "cwd": {
-                "type": "string",
-                "description": "%bazis.launch.cwd.description%",
-                "default": "${workspaceRoot}"
               },
               "sourceMaps": {
                 "type": "boolean",
@@ -153,6 +151,11 @@
                 "type": "number",
                 "description": "%bazis.timeout.description%",
                 "default": 10000
+              },
+              "noDebug":{
+                "type": "boolean",
+                "description": "%bazis.noDebug.description%",
+                "default": false
               }
             }
           }

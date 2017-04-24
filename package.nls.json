@@ -1,51 +1,22 @@
 {
-	"extension.description": "Visual Studio Code debugger extension for Node.js",
+	"extension.description": "Visual Studio Code расширение для Базис-Мебельщик",
 
-	"bazis.label": "Bazis",
+	"bazis.label": "Базис",
 
-	"smartStep.description": "Automatically step through generated code that cannot be mapped back to the original source.",
-	"skipFiles.description": "An array of glob patterns for files to skip when debugging.",
-	"outFiles.description": "If source maps are enabled, these glob patterns specify the generated JavaScript files. If a pattern starts with '!' the files are excluded. If not specified, the generated code is expected in the same directory as its source.",
-	"outDir.deprecationMessage": "Attribute 'outDir' is deprecated, use 'outFiles' instead.",
+	"launch.args.description": "Аргументы командной строки, передаваемые программе.",
 
-	"launch.args.description": "Command line arguments passed to the program.",
+	"bazis.sourceMaps.description": "Использовать карты исходного кода JavaScript (если они существуют).",
+	"bazis.stopOnEntry.description": "Автоматически остановить программу после запуска.",
+	"bazis.port.description": "Порт отладки для присоединения. Значение по умолчанию — 5858.",
+	"bazis.address.description": "TCP/IP-адрес порта отладки. Значение по умолчанию — \"localhost\".",
+	"bazis.noDebug.description": "Запуск скрипта без отладки. Значение по умолчанию — false.",
+	"bazis.timeout.description": "Повторять в течение этого количества миллисекунд для подключения к Node.js. Значение по умолчанию — 10 000 мс.",
 
-	"bazis.sourceMaps.description": "Use JavaScript source maps (if they exist).",
-	"bazis.stopOnEntry.description": "Automatically stop program after launch.",
-	"bazis.port.description": "Debug port to attach to. Default is 5858.",
-	"bazis.address.description": "TCP/IP address of debug port (for Node.js >= 5.0 only). Default is 'localhost'.",
-	"bazis.timeout.description": "Retry for this number of milliseconds to connect to Node.js. Default is 10000 ms.",
+	"bazis.launch.program.description": "Абсолютный путь к программе.",
+	"bazis.launch.console.description": "Где следует выполнять запуск целевого объекта отладки: внутренняя консоль, интегрированный терминал или внешний терминал.",
 
-	"bazis.launch.program.description": "Absolute path to the program. Generated value is guessed by looking at package.json and opened files. Edit this attribute.",
-	"bazis.launch.externalConsole.deprecationMessage": "Attribute 'externalConsole' is deprecated, use 'console' instead.",
-	"bazis.launch.console.description": "Where to launch the debug target: internal console, integrated terminal, or external terminal.",
-	"bazis.launch.cwd.description": "Absolute path to the working directory of the program being debugged.",
-	"bazis.launch.runtimeExecutable.description": "Runtime to use. Either an absolute path or the name of a runtime available on the PATH. If ommitted 'node' is assumed.",
-	"bazis.launch.runtimeArgs.description": "Optional arguments passed to the runtime executable.",
-	"bazis.launch.env.description": "Environment variables passed to the program.",
-	"bazis.launch.envFile.description": "Absolute path to a file containing environment variable definitions.",
+	"bazis.launch.config.name": "Запустить",
 
-	"bazis.launch.config.name": "Launch",
-
-	"bazis.attach.processId.description": "Id of process to attach to.",
-	"bazis.attach.restart.description": "Restart session after Node.js has terminated.",
-	"bazis.attach.localRoot.description": "The local source root that corresponds to the 'remoteRoot'.",
-	"bazis.attach.remoteRoot.description": "The source root of the remote host.",
-
-	"bazis.attach.config.name": "Attach",
-
-	"bazis.processattach.config.name": "Attach to Process",
-
-	"bazis.snippet.launch.label": "Node.js: Launch Configuration",
-	"bazis.snippet.launch.description": "A new configuration for launching a node program",
-	"bazis.snippet.attach.label": "Node.js: Attach Configuration",
-	"bazis.snippet.attach.description": "A new configuration for attaching to a running node program",
-
-	"extensionHost.label": "VS Code Extension Development",
-
-	"extensionHost.launch.runtimeExecutable.description": "Absolute path to VS Code.",
-	"extensionHost.launch.stopOnEntry.description": "Automatically stop the extension host after launch.",
-	"extensionHost.launch.sourceMaps.description": "Use JavaScript source maps.",
-
-	"extensionHost.launch.config.name": "Launch Extension"
+	"bazis.snippet.launch.label": "Базис: конфигурация запуска",
+	"bazis.snippet.launch.description": "Новая конфигурация для запуска отладчика"
 }

@@ -93,9 +93,7 @@ gulp.task('internal-minify-scripts', function() {
 function compile(buildNls) {
 	var r = tsProject.src()
 		.pipe(sourcemaps.init())
-		.pipe(tsProject()).js
-		.pipe(buildNls ? nls.rewriteLocalizeCalls() : es.through())
-		.pipe(buildNls ? nls.createAdditionalLanguageFiles(nls.coreLanguages, 'i18n', 'out') : es.through());
+		.pipe(tsProject()).js;
 
 	if (inlineMap && inlineSource) {
 		r = r.pipe(sourcemaps.write());
@@ -120,9 +118,9 @@ gulp.task('internal-nls-compile', function() {
 });
 
 gulp.task('add-i18n', function() {
-	return gulp.src(['package.nls.json'])
+	/*return gulp.src(['package.nls.json'])
 		.pipe(nls.createAdditionalLanguageFiles(nls.coreLanguages, 'i18n'))
-		.pipe(gulp.dest('.'));
+		.pipe(gulp.dest('.'));*/
 });
 
 gulp.task('vsce-publish', function(cb) {

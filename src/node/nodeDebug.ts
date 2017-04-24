@@ -766,13 +766,13 @@ export class NodeDebugSession extends DebugSession {
 				return;
 			}
 		} else {
-			if (!PathUtils.isOnPath(NodeDebugSession.NODE)) {
+			/*if (!PathUtils.isOnPath(NodeDebugSession.NODE)) {
 				this.sendErrorResponse(response, 2001, localize('VSND2001', "Cannot find runtime '{0}' on PATH.", '{_runtime}'), { _runtime: NodeDebugSession.NODE });
 				return;
-			}
+			}*/
 
 			if (this.exePath === ''){
-				this.sendErrorResponse(response, 2001, localize('VSND2001', "Cannot find runtime '{0}' on PATH.", '{_runtime}'), { _runtime: NodeDebugSession.BazisVersion })
+				this.sendErrorResponse(response, 2001, localize('VSND2001', "Cannot find runtime '{0}' on Registry.", '{_runtime}'), { _runtime: NodeDebugSession.BazisVersion })
 				return;
 			} else if (!FS.existsSync(this.exePath)) {
 				this.sendNotExistErrorResponse(response, 'runtimeExecutable', this.exePath);
@@ -784,30 +784,6 @@ export class NodeDebugSession extends DebugSession {
 
 		let runtimeArgs = args.runtimeArgs || [];
 		const programArgs = args.args || [];
-
-		// special code for 'extensionHost' debugging
-		if (this._adapterID === 'extensionHost') {
-
-			// we always launch in 'debug-brk' mode, but we only show the break event if 'stopOnEntry' attribute is true.
-			let launchArgs = [ runtimeExecutable ];
-			if (!this._noDebug) {
-				launchArgs.push(`--debugBrkPluginHost=${port}`);
-			}
-			launchArgs = launchArgs.concat(runtimeArgs, programArgs);
-
-			this._sendLaunchCommandToConsole(launchArgs);
-
-			const cmd = CP.spawn(runtimeExecutable, launchArgs.slice(1));
-			cmd.on('error', (err) => {
-				this._terminated(`failed to launch extensionHost (${err})`);
-			});
-			this._captureOutput(cmd);
-
-			// we are done!
-			this.sendResponse(response);
-			return;
-		}
-
 
 		let programPath = args.program;
 		if (programPath) {
@@ -876,17 +852,17 @@ export class NodeDebugSession extends DebugSession {
 	private launchRequest2(response: DebugProtocol.LaunchResponse, args: LaunchRequestArguments, programPath: string, programArgs: string[], runtimeExecutable: string, runtimeArgs: string[], port: number): void {
 
 		let program: string | undefined;
-		let workingDirectory = args.cwd;
-		if (!workingDirectory){
-			workingDirectory = Path.dirname(programPath);
-		}
+		let workingDirectory = Path.dirname(programPath);
 
 		program = programPath;
 
 		// we always break on entry (but if user did not request this, we will not stop in the UI).
 		let launchArgs = [ runtimeExecutable ];
-		if (! this._noDebug && !args.port) {		// if a port is given, we assume that the '--debug-brk' option is specified elsewhere
+		if (! this._noDebug) {
 			launchArgs.push(`--debug-brk=${port}`);
+		}
+		else{
+			launchArgs.push('--eval');
 		}
 		launchArgs = launchArgs.concat(runtimeArgs);
 		if (program) {
@@ -1421,7 +1397,10 @@ export class NodeDebugSession extends DebugSession {
 				this._node.stop();
 
 			} else {
-
+				////this command stops script execution in Bazis application - Letos
+				this._node.command(this._nodeInjectionAvailable ? 'vscode_evaluate' : 'evaluate',
+					{expression: 'Action.Cancel()',
+					 disable_break: true})
 				this._node.command('disconnect'); // we don't wait for reponse
 				// stop socket connection (otherwise node.js dies with ECONNRESET on Windows)
 				this._node.stop();
