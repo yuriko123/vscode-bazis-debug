@@ -11,7 +11,7 @@ import * as fs from 'fs';
 
 const localize = nls.config(process.env.VSCODE_NLS_CONFIG)();
 
-function addDefintionFiles(){
+function addDeclarationFiles(){
 	let extensionInfo = vscode.extensions.getExtension('BazisSoft.bazis-debug');
 	if (!extensionInfo){
 		return;
@@ -34,7 +34,22 @@ function addDefintionFiles(){
 		if (!fs.existsSync(join(typesPath, '/node'))){
 			fs.mkdirSync(join(typesPath, '/node'));
 		};
-		fs.writeFileSync(join(typesPath, '/bazis/index.d.ts'), fs.readFileSync(join(extensionPath,'/bazis.d.ts')));
+		const experimentalRefStr = '/// <reference path="./experimental.d.ts" />';
+
+		let mainFilename = join(typesPath, '/bazis/index.d.ts');
+		//check for included experimental declaration
+		let experimentalRefIncluded = false;
+		if (fs.existsSync(mainFilename)){
+			let prevText = fs.readFileSync(mainFilename).toString();
+			let ind = prevText.indexOf(experimentalRefStr);
+			experimentalRefIncluded = ind > 0 && prevText[ind - 1] != '/';
+		}
+		let newDeclarationText = fs.readFileSync(join(extensionPath,'/bazis.d.ts')).toString();
+		// include experimental (remove excess slash) if it was included in previous file
+		if (experimentalRefIncluded){
+			newDeclarationText = newDeclarationText.replace('/' + experimentalRefStr, experimentalRefStr);
+		}
+		fs.writeFileSync(join(typesPath, '/bazis/index.d.ts'), newDeclarationText);
 		fs.writeFileSync(join(typesPath, '/bazis/experimental.d.ts'), fs.readFileSync(join(extensionPath,'/experimental.d.ts')));
 		if (!fs.existsSync(join(typesPath, '/node/index.d.ts'))){
 			fs.writeFileSync(join(typesPath, '/node/index.d.ts'), fs.readFileSync(join(extensionPath, '/node.d.ts')));
@@ -56,8 +71,8 @@ const initialConfigurations = [
 ];
 
 export function activate(context: vscode.ExtensionContext) {
-	vscode.commands.registerCommand('bazis-debug.addDefintionFiles', () => {
-		addDefintionFiles();
+	vscode.commands.registerCommand('bazis-debug.addDeclarationFiles', () => {
+		addDeclarationFiles();
 	});
 
 	context.subscriptions.push(vscode.commands.registerCommand('bazis-debug.provideInitialConfigurations', () => {
@@ -95,7 +110,7 @@ export function activate(context: vscode.ExtensionContext) {
 		const configurationsMassaged = JSON.stringify(initialConfigurations, null, '\t').replace(',\n\t\t"processId', '\n\t\t//"processId')
 			.split('\n').map(line => '\t' + line).join('\n').trim();
 
-		addDefintionFiles();
+		addDeclarationFiles();
 
 		return [
 			'{',
