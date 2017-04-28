@@ -75,6 +75,16 @@
       {
         "command": "bazis-debug.addDeclarationFiles",
         "title": "Добавить/обновить файлы определений *.d.ts для Базис-Мебельщик"
+      },
+      {
+        "command": "bazis-debug.openFormEditor",
+        "title": "Открыть редактор форм"
+      }
+    ],
+    "keybindings":[
+      {
+        "command": "bazis-debug.openFormEditor",
+        "key": "F7"
       }
     ],
     "breakpoints": [
