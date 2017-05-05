@@ -1,7 +1,6 @@
 import * as ts from 'typescript';
 
 export namespace baz {
-	const FormInitializer = 'NewForm';
 
 	class ParseError extends Error {
 
@@ -18,7 +17,7 @@ export namespace baz {
 		}
 		name: string;
 		range: InfoRange;
-		source?: SourceInfo;
+		source: SourceInfo;
 		ClearCircular() {
 			this.source = undefined;
 		}
@@ -29,36 +28,65 @@ export namespace baz {
 		AddNewItem(item: BaseInfo) {
 			throw new ParseError('can\'t add item to BaseInfo')
 		}
-		CopyParams(newInfo: BaseInfo){
-			newInfo.range = this.range;
-			newInfo.source = this.source;
-		}
-		CopyVar(): VariableInfo{
-			let result = new VariableInfo(this.name);
-			this.CopyParams(result);
-			return result;
-		}
-		CopyObj(): ObjectInfo{
-			let result = new ObjectInfo(this.name);
-			this.CopyParams(result);
-			return result;
-		}
+		// CopyParams(newInfo: BaseInfo) {
+		// 	newInfo.range = this.range;
+		// 	newInfo.source = this.source;
+		// }
+		// CopyVar(): ObjectInfo {
+		// 	let result = new ObjectInfo(this.name);
+		// 	this.CopyParams(result);
+		// 	return result;
+		// }
+		// CopyObj(): ObjectInfo {
+		// 	let result = new ObjectInfo(this.name);
+		// 	this.CopyParams(result);
+		// 	return result;
+		// }
 	}
 
-	class VariableInfo extends BaseInfo {
+	class ObjectArrayInfo extends BaseInfo{
+		AddNewItem(item: BaseInfo) {
+			if (item instanceof ObjectInfo)
+				this.array.push(item);
+			else
+				throw new ParseError('can\'t add BaseInfo to ObjectArray')
+		}
+		array: Array<ObjectInfo>
+	}
+
+	class ObjectInfo extends BaseInfo {
+		constructor(name: string, range?: InfoRange, init?: boolean) {
+			super(name);
+			if (range)
+				this.range = range;
+			this.initialized = init || false;
+		}
 		initialized: boolean = false;
+		/**
+		 * value of this variable (only for primitive variables)
+		 */
 		value?: string;
-		owner?: VariableInfo;
+		owner?: ObjectInfo;
+		/**
+		 * reference to function, which creates this object
+		 */
+		initializer?: ObjectInfo;
 		/**
 		 * base value, which is in this var
 		 * e.g: let a = b.c.
-		 * If 'this' contains VariableInfo of 'a' then refersTo will contain VariableInfo of 'c' var
+		 * If 'this' contains ObjectInfo of 'a' then refersTo will contain ObjectInfo of 'c' var
 		 */
-		refersTo?: VariableInfo;
+		refersTo?: ObjectInfo;
+		props: ObjectInfo[] = [];
+
+
+		/**
+		 * returns full name of object like 'OwnerName.Name'
+		 */
 		GetFullName(): string[] {
 			let result: string[] = [];
 			if (this.owner) {
-				if (result instanceof VariableInfo)
+				if (this.owner instanceof BaseInfo)
 					result = this.owner.GetFullName();
 				else //result should be string
 					result = this.owner.split('.');
@@ -66,123 +94,84 @@ export namespace baz {
 			result.push(this.name);
 			return result;
 		}
-		CopyParams(newInfo: VariableInfo, structureOnly?: boolean){
-			newInfo.range = this.range;
-			newInfo.source = this.source;
-			newInfo.owner = this.owner;
-			if (!structureOnly){
-				newInfo.value = this.value;
-				newInfo.initialized = this.initialized;
-				newInfo.refersTo = this.refersTo;
-			}
-		}
-		CopyVar(structureOnly?: boolean): VariableInfo{
-			let result = new VariableInfo(this.name);
-			this.CopyParams(result, structureOnly);
-			return result;
-		}
-		CopyObj(structureOnly?: boolean): ObjectInfo{
-			let result = new ObjectInfo(this.name);
-			this.CopyParams(result, structureOnly);
-			return result;
-		}
-		FindVariable(varName: string): VariableInfo | undefined {
-			if (this.name === varName) {
-				return this;
-			}
-			return undefined;
-		}
-		ClearCircular() {
-			this.source = undefined;
-			this.ConvertPointersToString();
-		}
 		/**
 		 * It will replace references to string
 		 */
 		ConvertPointersToString() {
 			if (this.owner) {
-				if (this.owner instanceof VariableInfo)
+				if (this.owner instanceof ObjectInfo)
 					this.owner = this.owner.GetFullName().join('.');
 			}
 			else
 				this.owner = undefined;
 			if (this.refersTo) {
-				if (this.refersTo instanceof VariableInfo)
+				if (this.refersTo instanceof ObjectInfo)
 					this.refersTo = this.refersTo.GetFullName().join('.');
 			}
 			else
 				this.refersTo = undefined;
 		}
-	}
 
-	class FunctionInfo extends VariableInfo {
-		AddNewItem(item: BaseInfo) {
-			throw new ParseError('can\'t add item to FunctionInfo')
-		}
-		ClearCircular(){
-			this.args.forEach((arg, i, arr) =>{
-				if (arg instanceof VariableInfo){
-					if (arg.name)
-						arr[i] = {name: arg.name};
-					else if (arg.value)
-						arr[i] = {value: arg.value};
-					else
-						throw new ParseError('argument have no name and no value');
-				}
-			})
-		}
-		args: Array<VariableInfo> = [];
-	}
-
-	class ObjectInfo extends VariableInfo {
-		constructor(name: string, type?: string, range?: InfoRange, init?: boolean) {
-			super(name);
-			if (type)
-				this.constructorFunc = type;
-			if (range)
-				this.range = range;
-			this.initialized = init || false;
-		}
-		args: VariableInfo[] = [];
-		constructorFunc: string;
-		creator?: VariableInfo;
-		props: VariableInfo[] = [];
-		calls: FunctionInfo[] = [];
-
-		CopyParams(newInfo: VariableInfo, structureOnly?: boolean){
+		CopyParams(newInfo: ObjectInfo, structureOnly?: boolean) {
 			newInfo.range = this.range;
 			newInfo.source = this.source;
 			newInfo.owner = this.owner;
-			if (!structureOnly){
+			if (!structureOnly) {
 				newInfo.value = this.value;
 				newInfo.initialized = this.initialized;
 				newInfo.refersTo = this.refersTo;
-				if (newInfo instanceof ObjectInfo){
-					newInfo.args = this.args;
-					newInfo.constructorFunc = this.constructorFunc;
-					newInfo.creator = this.creator;
+				if (newInfo instanceof ObjectInfo) {
 					newInfo.props = this.props;
-					newInfo.calls = this.calls;
 				}
 			}
 		}
-		CopyVar(structureOnly?: boolean): VariableInfo{
-			let result = new VariableInfo(this.name);
-			this.CopyParams(result, structureOnly);
-			return result;
-		}
-		CopyObj(structureOnly?: boolean): ObjectInfo{
+		CopyVar(structureOnly?: boolean): ObjectInfo {
 			let result = new ObjectInfo(this.name);
 			this.CopyParams(result, structureOnly);
 			return result;
 		}
-		FindVariable(varName: string): VariableInfo | undefined {
-			let names = varName.split('.');
+		CopyObj(structureOnly?: boolean): ObjectInfo {
+			let result = new ObjectInfo(this.name);
+			this.CopyParams(result, structureOnly);
+			return result;
+		}
+		FindFunction(names: string[]): FunctionInfo | undefined {
 			if (this.name === names[0]) {
 				if (names.length > 1) {
 					names.splice(0, 1);
-					let result: VariableInfo | undefined;
-					let newName = names.join('.');
+					let result: FunctionInfo | undefined;
+					let newName = names;
+					for (let i = 0; i < this.props.length; i++) {
+						result = this.props[i].FindFunction(newName);
+						if (result) {
+							return result;
+						}
+					}
+					// if no one prop was found
+					// maybe it's not good to create object if names count more than one
+					let newObj: ObjectInfo = names.length === 1 ? new FunctionInfo(names[0]) : new ObjectInfo(names[0]);
+					newObj.source = this.source;
+					newObj.owner = this;
+					this.props.push(newObj);
+					//
+					result = newObj.FindFunction(newName);
+					return result;
+				}
+				else {
+					if (this instanceof FunctionInfo)
+						return this
+					else
+						throw new Error(`Object ${this.GetFullName().join('.')} is not function`);
+				}
+			}
+			return undefined;
+		}
+		FindVariable(names: string[]): ObjectInfo | undefined {
+			if (this.name === names[0]) {
+				if (names.length > 1) {
+					names.splice(0, 1);
+					let result: ObjectInfo | undefined;
+					let newName = names;
 					for (let i = 0; i < this.props.length; i++) {
 						result = this.props[i].FindVariable(newName)
 						if (result) {
@@ -203,31 +192,17 @@ export namespace baz {
 			}
 			return undefined;
 		}
-		AddProp(newProp: VariableInfo) {
+		AddProp(newProp: ObjectInfo) {
 			newProp.owner = this;
 			this.props.push(newProp);
 		}
 
 		AddNewItem(item: BaseInfo) {
-			if (!(item instanceof VariableInfo))
+			if (!(item instanceof ObjectInfo))
 				throw new ParseError('item is not a variable');
-			(<VariableInfo>item).owner = this;
+			(<ObjectInfo>item).owner = this;
 			item.source = this.source;
-			if (item instanceof FunctionInfo)
-				this.calls.push(item);
-			else
-				this.props.push(item);
-			if (item instanceof FormInfo && this.source) {
-				this.source.AddForm(<FormInfo>item);
-			}
-		}
-		public AddForm(form: FormInfo) {
-			let source = this.source
-			if (source) {
-				form.source = source;
-				source.forms.push(form);
-			}
-			form.owner = this;
+			this.props.push(item);
 		}
 		ClearCircular() {
 			this.source = undefined;
@@ -240,25 +215,32 @@ export namespace baz {
 				else
 					prop.ClearCircular();
 			});
-			this.calls.forEach(call => {
-				call.ClearCircular();
-			});
-			this.args.forEach((arg, i, arr) =>{
-				if (arg instanceof VariableInfo){
-					if (arg.name)
-						arr[i] = {name: arg.name};
-					else if (arg.value)
-						arr[i] = {value: arg.value};
-					else
-						throw new ParseError('argument have no name and no value');
-				}
-			})
+			// this.args.forEach((arg, i, arr) => {
+			// 	if (arg instanceof ObjectInfo) {
+			// 		if (arg.name)
+			// 			arr[i] = { name: arg.name };
+			// 		else if (arg.value)
+			// 			arr[i] = { value: arg.value };
+			// 		else
+			// 			throw new ParseError('argument have no name and no value');
+			// 	}
+			// })
 		}
+	}
+
+	class FunctionInfo extends ObjectInfo {
+		args: Array<ObjectInfo> = [];
+		public Copy(): FunctionInfo{
+			let result = new FunctionInfo(this.name);
+			result.owner = this.owner;
+			return result;
+		}
+
 	}
 
 	class FormInfo extends ObjectInfo {
 		constructor(name: string, range?: InfoRange, init?: boolean) {
-			super(name, FormInitializer, range, init);
+			super(name, range, init);
 		}
 	}
 
@@ -266,61 +248,68 @@ export namespace baz {
 		constructor(name: string, range: InfoRange) {
 			super(name);
 			this.source = this;
-			this.forms = [];
 			this.range = range;
 			this.variables = [];
 		}
-
-		public AddForm(form: FormInfo) {
-			form.source = this;
-			this.forms.push(form);
-		}
-		private AddVar(variable: VariableInfo) {
+		private AddVar(variable: ObjectInfo) {
 			variable.source = this;
 			this.variables.push(variable);
 		}
 
 		public AddNewItem(item: BaseInfo) {
-			if (!(item instanceof VariableInfo))
-				throw new ParseError('new item is not VariableInfo');
-			if (item instanceof FormInfo) {
-				this.AddForm(item)
-			}
-			else {
-				this.AddVar(item);
-			}
+			if (!(item instanceof ObjectInfo))
+				throw new ParseError('new item is not ObjectInfo');
+			this.AddVar(item);
 		}
-		public FindVariable(varName: string): VariableInfo | undefined {
-			let result: VariableInfo | undefined;
-			for (let i = 0; i < this.forms.length; i++) {
-				result = this.forms[i].FindVariable(varName);
-				if (result)
-					return result;
-			}
+		/**
+		 * find variable by FULL name
+		 * @param fullName splitted full object name like ['OwnerName', 'Name']
+		 */
+		public FindVariable(fullName: string[]): ObjectInfo {
+			let result: ObjectInfo | undefined;
 			// maybe it will be optional
 			for (let i = 0; i < this.variables.length; i++) {
-				result = this.variables[i].FindVariable(varName);
+				result = this.variables[i].FindVariable(fullName);
 				if (result)
 					return result;
 			}
-			return undefined;
+			//if no one variable found
+			let newObj = new ObjectInfo(fullName[0]);
+			this.variables.push(newObj);
+			result = newObj.FindVariable(fullName);
+			if (!result)
+				throw new Error(`can't create variable ${fullName.join('.')} in SourceInfo.FindVariable`);
+			return result;
+		}
+		public FindFunction(fullName: string[]): FunctionInfo {
+			let result: FunctionInfo | undefined;
+			// maybe it will be optional
+			for (let i = 0; i < this.variables.length; i++) {
+				result = this.variables[i].FindFunction(fullName);
+				if (result)
+					return result;
+			}
+			//if no one function found
+			let newObj: ObjectInfo = fullName.length === 1 ? new FunctionInfo(fullName[0]) : new ObjectInfo(fullName[0]);
+			this.variables.push(newObj);
+			result = newObj.FindFunction(fullName);
+			if (!result)
+				throw new Error(`can't create function ${fullName.join('.')} in SourceInfo.FindFunction`);
+			return result;
+
 		}
 		ClearCircular() {
 			this.source = undefined;
-			this.forms.forEach(element => {
-				element.ClearCircular();
-			});
 			this.variables.forEach(element => {
 				element.ClearCircular();
 			});
 		}
-		forms: Array<FormInfo>;
-		variables: Array<VariableInfo>;
+		variables: Array<ObjectInfo>;
 	}
 
 	//Additional functions
 
-	function getFullNameOfVariableInfo(expr: ts.Expression, result?: string[]): string[] {
+	function getFullNameOfObjectInfo(expr: ts.Expression, result?: string[]): string[] {
 		if (!result)
 			result = [];
 		if (expr) {
@@ -329,7 +318,7 @@ export namespace baz {
 					let prop = <ts.PropertyAccessExpression>expr;
 					let newExpr = prop.expression;
 					if (newExpr) {
-						result = getFullNameOfVariableInfo(newExpr, result);
+						result = getFullNameOfObjectInfo(newExpr, result);
 					}
 					let name = prop.name;
 					if (name.text) {
@@ -346,264 +335,79 @@ export namespace baz {
 		return result;
 	}
 
-	function MakeObject(name: string): ObjectInfo {
-		return new ObjectInfo(name);
-	}
-
-	//parse functions
-
-	// function parseArgs(args: ts.NodeArray<ts.Expression>, info: BaseInfo): BaseInfo{
-
-	// }
-
-	/**
-	 * @param objInfo Info of object needs to fill
-	 */
-	function parseObjectLiteralExpression(expr: ts.ObjectLiteralExpression, objInfo: ObjectInfo): ObjectInfo {
-		let props = expr.properties;
-		objInfo.initialized = true;
-		props.forEach(property => {
-			switch (property.kind) {
-				case (ts.SyntaxKind.PropertyAssignment): {
-					let curProp = <ts.PropertyAssignment>property;
-					let name = curProp.name;
-					let newProp: VariableInfo | undefined;
-					switch (name.kind) {
-						case (ts.SyntaxKind.Identifier): {
-							newProp = MakeObject((<ts.Identifier>name).text);
-							break;
-						}
-					}
-					let init = curProp.initializer;
-					if (init && newProp) {
-						newProp = parseInitializer(init, <ObjectInfo>newProp);
-					}
-					if (newProp) {
-						newProp.source = objInfo.source;
-						newProp.range = { pos: expr.pos, end: expr.end };
-						objInfo.AddNewItem(newProp);
-					}
-					else
-						throw new ParseError(`new prop doesnt exist`);
-					break;
-				}
-			}
-		});
-		return objInfo;
-	}
-
-	function parseCallExpression(call: ts.CallExpression, info: BaseInfo): BaseInfo {
-		let expr = call.expression;
-		// debugger;
-		switch (expr.kind) {
-			case ts.SyntaxKind.Identifier: {
-				let id = <ts.Identifier>expr;
-				let text = id.text;
-				if (info.source)
-					info.source.variables.push(new FunctionInfo(text));
-				break;
-			}
-			case ts.SyntaxKind.PropertyAccessExpression: {
-				let propExpr = <ts.PropertyAccessExpression>expr;
-				let ownerName = getFullNameOfVariableInfo(propExpr.expression).join('.');
-				if (info.source) {
-					let creator = info.source.FindVariable(ownerName);
-					let type = propExpr.name.text;
-					let result = new FunctionInfo(type);
-					result.args = parseArguments(call.arguments);
-					if (creator instanceof ObjectInfo) {
-						(<ObjectInfo>creator).calls.push(result);
-					}
-					else
-						throw new ParseError(creator instanceof VariableInfo ?
-							`creator is not object` :
-							`there is no owner for ${type} method`)
-				}
-				break;
-			}
-		}
-		return info;
-	}
-
-	function parseCallConstructor(call: ts.CallExpression, objInfo: BaseInfo): BaseInfo {
-		let expr = call.expression;
-		let result = objInfo;
-		switch (expr.kind) {
-			case ts.SyntaxKind.Identifier: {
-				let id = <ts.Identifier>expr;
-				let text = id.text;
-				if (text === FormInitializer) {
-					result = new FormInfo(objInfo.name, objInfo.range, true);
-				}
-			}
-			case ts.SyntaxKind.PropertyAccessExpression: {
-				let propExpr = <ts.PropertyAccessExpression>expr;
-				let creatorName = getFullNameOfVariableInfo(propExpr.expression).join('.');
-				if (objInfo.source) {
-					let creator = objInfo.source.FindVariable(creatorName);
-					let type = propExpr.name.text;
-					result = new ObjectInfo(objInfo.name, type, objInfo.range, true);
-					(<ObjectInfo>result).creator = creator;
-				}
-				break;
-			}
-		}
-		if (result instanceof ObjectInfo) {
-			(<ObjectInfo>result).args = parseArguments(call.arguments);
-		}
+	function MakeObject(name: string, source: SourceInfo, range?: InfoRange): ObjectInfo {
+		let result = new ObjectInfo(name, range);
+		result.source = source;
 		return result;
 	}
 
 	/**
-	 * returns VariableInfo if arg is primitive
-	 * @param val value to copy info
+	 * Make initialization info for obj from init
+	 * @param init Initializer expression
+	 * @param obj Object, which initializer we need to parse
 	 */
-	function parsePrimitive(arg: ts.Node, val?: BaseInfo): VariableInfo | undefined {
-		let result: VariableInfo = val && (val instanceof VariableInfo)? val : new VariableInfo('');
-		switch (arg.kind) {
-			case ts.SyntaxKind.StringLiteral: {
-				result.value = (<ts.StringLiteral>arg).text;
-				break;
-			}
-			case ts.SyntaxKind.NumericLiteral: {
-				result.value = (<ts.NumericLiteral>arg).text;
-				break;
-			}
-			case ts.SyntaxKind.TrueKeyword: {
-				result.value = 'true';
-				break;
-			}
-			case ts.SyntaxKind.FalseKeyword: {
-				result.value = 'false';
-				break;
-			}
-			default:{
-				return undefined;
-			}
-		}
-		return result;
-	}
-
-	function parseArguments(args: ts.NodeArray<ts.Expression>): Array<VariableInfo> {
-		let result: Array<VariableInfo> = [];
-		args.forEach(arg => {
-			let newVar = parsePrimitive(arg);
-			if (!newVar) {
-				let fullName = getFullNameOfVariableInfo(arg);
-				newVar = new VariableInfo(fullName[0]);
-			}
-			result.push(newVar);
-		})
-		return result;
-	}
-
-	function parsePropertyAccessExpr(expr: ts.PropertyAccessExpression, source: SourceInfo): VariableInfo | undefined {
-		let name = getFullNameOfVariableInfo(expr);
-		let result = source.FindVariable(name.join('.'));
-		return result
-	}
-
-	function parseInitializer(init: ts.Expression, ObjInfo: ObjectInfo): VariableInfo {
-		let newInfo: VariableInfo | undefined;
-		switch (init.kind) {
-			case (ts.SyntaxKind.CallExpression): {
-				newInfo = <ObjectInfo>parseCallConstructor(<ts.CallExpression>init, ObjInfo);
-				break;
-			}
-			case (ts.SyntaxKind.ObjectLiteralExpression): {
-				let expr = <ts.ObjectLiteralExpression>init;
-				newInfo = parseObjectLiteralExpression(expr, ObjInfo);
-				break;
-			}
-			case (ts.SyntaxKind.PropertyAccessExpression): {
-				let expr = <ts.PropertyAccessExpression>init;
-				newInfo = ObjInfo;
-				if (ObjInfo.source) {
-					let ref = parsePropertyAccessExpr(expr, ObjInfo.source);
-					newInfo.refersTo = ref;
-				}
-				else
-					throw new ParseError('Obj info does not contain source');
-				break;
-			}
-			default: {
-				newInfo = parsePrimitive(init, ObjInfo);
-				if (newInfo){
+	function parseInitializer(init: ts.Expression | undefined, obj: ObjectInfo) {
+		if (init) {
+			switch (init.kind) {
+				case (ts.SyntaxKind.ObjectLiteralExpression): {
+					let expr = <ts.ObjectLiteralExpression>init;
+					for (let i = 0; i < expr.properties.length; i++) {
+						parseNode(expr.properties[i], obj);
+					}
 					break;
 				}
-				throw new ParseError(`Syntax kind ${init.kind} is missed`);
+				case (ts.SyntaxKind.CallExpression): {
+					let expr = <ts.CallExpression>init;
+					let func = new FunctionInfo('');
+					let parsedFunc = parseNode(expr, func);
+					if (parsedFunc instanceof FunctionInfo)
+						obj.initializer = parsedFunc;
+					else
+						throw new ParseError(`initializer call isn't function`);
+					break;
+				}
 			}
 		}
-		if (!newInfo)
-			throw new ParseError('No one var/object was created in Initializer parse');
-		return newInfo;
 	}
 
-	function parseVariableDeclaration(decl: ts.VariableDeclaration, info: BaseInfo): BaseInfo {
-		let name = decl.name;
-		let newVar: BaseInfo | undefined;
-		switch (name.kind) {
+	/**
+	 * parse variable declaration and add new variable to info
+	 * @param decl Variable declaration
+	 * @param info Object\Source - owner of new variable
+	 */
+	function parseVariableDeclaration(decl: ts.VariableDeclaration, info: BaseInfo) {
+		let declName = decl.name;
+		let objName = '';
+		switch (declName.kind) {
 			case (ts.SyntaxKind.Identifier): {
-				newVar = MakeObject((<ts.Identifier>name).text);
+				objName = (<ts.Identifier>declName).text;
 				break;
 			}
 		}
-		let initializer = decl.initializer;
-		if (initializer && newVar) {
-			newVar.range = { pos: decl.pos, end: decl.end };
-			newVar.source = info.source;
-			if (newVar instanceof ObjectInfo)
-				newVar = parseInitializer(initializer, <ObjectInfo>newVar);
-		}
-		if (newVar) {
-			info.AddNewItem(newVar);
-		}
-		else
-			throw new ParseError(`new var is not defined`);
-		return info;
+		if (!info.source)
+			throw new ParseError(`info '${info.name}' doesn't have a source`);
+		let newObj = MakeObject(objName, info.source, { pos: decl.pos, end: decl.end })
+		parseInitializer(decl.initializer, newObj);
+		info.AddNewItem(newObj);
 	}
 
-	function parseVariableStatement(statement: ts.VariableStatement, info: BaseInfo): BaseInfo {
-		let declarations = statement.declarationList.declarations;
-		declarations.forEach(element => {
-			info = parseNode(element, info);
-			// if (!newObject)
-			// 	throw new ParseError('newObject is not defined');
-			// info.AddNewItem(newObject);
-		});
-		return info
+	function parseCallExpression(expr: ts.CallExpression, info: BaseInfo): FunctionInfo | undefined {
+		let fullCallName = getFullNameOfObjectInfo(expr.expression);
+		let newFunc = info.source.FindFunction(fullCallName);
+		let funcArgs = new ObjectArrayInfo('');
+		for (let i = 0; i < expr.arguments.length; i++)
+			parseNode(expr.arguments[i], funcArgs);
+		newFunc.args = newFunc.args.concat(funcArgs.array);
+		if (info instanceof FunctionInfo && info.name === ''){
+			return newFunc;
+		}
+		else {
+			info.AddNewItem(newFunc);
+			return undefined;
+		}
 	}
 
-	function parseBinaryExpression(expr: ts.BinaryExpression, info: BaseInfo): BaseInfo {
-		//TODO: parse expression token
-		let src = info.source
-		if (src) {
-			let left = expr.left
-			let leftObjName = getFullNameOfVariableInfo(left);
-			let objName = leftObjName.join('.');
-			let leftObjOwner: ObjectInfo | undefined;
-			/** it can be obj, obj prop or simple var/func */
-			let leftObj = src.FindVariable(objName);
-			//left ObjExists
-			if (leftObj) {
-				leftObj = <VariableInfo>parseNode(expr.right, leftObj);
-				if (leftObjOwner) {
-					leftObj.owner = leftObjOwner;
-					leftObjOwner.AddNewItem(leftObj);
-				}
-			}
-			else {
-				throw new ParseError(`left object ${objName} doesnt exist`);
-			}
-			return info;
-		}
-		throw new ParseError(`Source info is not defined`);
-	}
-
-	function parseNode(node: ts.Node, info?: BaseInfo): BaseInfo {
-		if (!info) {
-			info = new SourceInfo('', { pos: node.pos, end: node.end });
-		}
+	function parseNode(node: ts.Node, info: BaseInfo): BaseInfo {
 		let needParseChilds = false;
 		switch (node.kind) {
 			case ts.SyntaxKind.ExpressionStatement: {
@@ -612,28 +416,28 @@ export namespace baz {
 					parseNode(expr, info);
 				break;
 			}
-			case ts.SyntaxKind.VariableStatement: {
-				parseVariableStatement(<ts.VariableStatement>node, info);
-				break;
-			}
 			case ts.SyntaxKind.VariableDeclaration: {
 				parseVariableDeclaration(<ts.VariableDeclaration>node, info);
 				break;
 			}
 			case ts.SyntaxKind.BinaryExpression: {
-				parseBinaryExpression(<ts.BinaryExpression>node, info);
 				break;
 			}
 			case ts.SyntaxKind.CallExpression: {
-				parseCallExpression(<ts.CallExpression>node, info)
+				//if node isn't
+				let call = parseCallExpression(<ts.CallExpression>node, info);
+				if (call){
+					info = call;
+				}
+				break;
+			}
+			case ts.SyntaxKind.VariableStatement:
+			case ts.SyntaxKind.SourceFile: {
+				needParseChilds = true;
 				break;
 			}
 			default: {
-				let result = parsePrimitive(node, info);
-				if (result){
-					break;
-				}
-				needParseChilds = true;
+				// needParseChilds = true;
 				break;
 			}
 		}
@@ -649,8 +453,15 @@ export namespace baz {
 	}
 
 
-	export function parseSource(src: ts.SourceFile): SourceInfo {
-		let result = <SourceInfo>parseNode(src);
+	export function parseSource(src: ts.SourceFile, errorlogger: (error: string) => void): SourceInfo {
+		let result = new SourceInfo('', { pos: src.pos, end: src.end });
+		try {
+			result = <SourceInfo>parseNode(src, result);
+		}
+		catch (e) {
+			if (errorlogger)
+				errorlogger(e.stack);
+		}
 		return result;
 	}
 }

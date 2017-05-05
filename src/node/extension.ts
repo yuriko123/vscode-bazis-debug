@@ -87,9 +87,9 @@ let loggingDate = true;
 
 let socketPort = 7800;
 
-function logError(error: string){
-	if (logging){
-		fs.writeFileSync(logFile, `${loggingDate? date.getDate() + ':' : ''}${error}`)
+function logError(error: string): void {
+	if (logging) {
+		fs.appendFileSync(logFile, `${loggingDate ? date.getDate() + ':' : ''}${error}\n`)
 	}
 }
 
@@ -106,7 +106,7 @@ function RunFormEditor() {
 			client.on('connect', function (connection) {
 				clientConnection = connection;
 				connection.on('error', function (error) {
-					logError(`socket error: ${error}`);
+					// logError(`socket error: ${error}`);
 				});
 				connection.on('close', function () {
 					formEditorProcess.kill();
@@ -131,7 +131,7 @@ function RunFormEditor() {
 
 
 function updateForm(src: ts.SourceFile) {
-	let parsedSource = baz.parseSource(src);
+	let parsedSource = baz.parseSource(src, logError);
 	parsedSource.ClearCircular();
 	let msg = JSON.stringify(parsedSource);
 	clientConnection.sendUTF(msg);
@@ -182,9 +182,9 @@ function onDidChangeTextDocument(ev: vscode.TextDocumentChangeEvent): void {
 		// 	},
 		// 	newLength: element.text.length
 		// });
-		fs.appendFileSync('D:\\tmp\\changes.out',
-			'---------------------------------------\n' +
-			JSON.stringify(src.statements) + `\n docVersion = ${ev.document.version}`);
+		// fs.appendFileSync('D:\\tmp\\changes.out',
+		// 	'---------------------------------------\n' +
+		// 	JSON.stringify(src.statements) + `\n docVersion = ${ev.document.version}`);
 
 	}
 	catch (e) {
@@ -211,11 +211,14 @@ function openFormEditor() {
 			src = ts.createSourceFile(curDoc.fileName, text, ts.ScriptTarget.ES2016, false);
 			sourceFiles[fileName] = src;
 		}
-		let result = baz.parseSource(src);
+		let result = baz.parseSource(src, logError);
 		result.ClearCircular();
 
-
-		fs.writeFileSync('D:\\tmp\\src.out', JSON.stringify(src.statements));
+		try {
+			fs.writeFileSync('D:\\tmp\\src.out', JSON.stringify(src.statements));
+			// fs.appendFileSync('D:\\tmp\\src.out', `\n FULL:\n${JSON.stringify(src)}`);
+		}
+		catch (e) { }
 		fs.writeFileSync('D:\\tmp\\result.out', JSON.stringify(result));
 
 	}
