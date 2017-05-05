@@ -9,7 +9,9 @@ import { join, isAbsolute } from 'path';
 import * as nls from 'vscode-nls';
 import * as fs from 'fs';
 import * as ts from 'typescript';
-import * as formParser from './formParser';
+import * as cp from 'child_process';
+import { baz } from './formParser';
+var WebSocketClient = require('websocket').client;
 
 const localize = nls.config(process.env.VSCODE_NLS_CONFIG)();
 
@@ -63,17 +65,78 @@ function addDeclarationFiles() {
 }
 
 let formOpened: boolean = false;
+let formEditorPath: string = '';
+let formEditorProcess: cp.ChildProcess;
+
 let sourceFiles: Array<ts.SourceFile> = [];
 let curTimeout: NodeJS.Timer;
+let changesSet = false;
+let logFile = vscode.extensions.getExtension('BazisSoft.bazis-debug').extensionPath + '\\log.out';
+let date = new Date();
+//client for TCP connection to form editor
+
+let client = new WebSocketClient();
+let clientConnection;
 
 // should be able to change in settings
 let parseTimeout = 1500;
 let updateOnEnter: boolean = true;
 let updateOnSemicolon: boolean = true;
+let logging = true;
+let loggingDate = true;
+
+let socketPort = 7800;
+
+function logError(error: string){
+	if (logging){
+		fs.writeFileSync(logFile, `${loggingDate? date.getDate() + ':' : ''}${error}`)
+	}
+}
+
+function RunFormEditor() {
+	if (formEditorPath) {
+		if (!formOpened) {
+			vscode.window.showInformationMessage(`port = ${socketPort}\npath = ${formEditorPath}`);
+			formEditorProcess = cp.spawn(formEditorPath, ['--port', socketPort.toString()]);
+
+			client.on('connectFailed', function (error) {
+				console.log('Connect Error: ' + error.toString());
+			});
+
+			client.on('connect', function (connection) {
+				clientConnection = connection;
+				connection.on('error', function (error) {
+					logError(`socket error: ${error}`);
+				});
+				connection.on('close', function () {
+					formEditorProcess.kill();
+					formOpened = false;
+				});
+				connection.on('message', function (message) {
+					if (message.type === 'utf8') {
+						console.log("Received: '" + message.utf8Data + "'");
+					}
+				});
+			});
+
+			client.connect(`ws://localhost:${socketPort}/`);
+
+			formOpened = true;
+		}
+		else {
+			clientConnection.sendUTF('this is message');
+		}
+	}
+}
 
 
 function updateForm(src: ts.SourceFile) {
-	let parsedSource = formParser.parseSource(src);
+	let parsedSource = baz.parseSource(src);
+	parsedSource.ClearCircular();
+	let msg = JSON.stringify(parsedSource);
+	clientConnection.sendUTF(msg);
+
+
 }
 
 function onDidChangeTextDocument(ev: vscode.TextDocumentChangeEvent): void {
@@ -119,9 +182,9 @@ function onDidChangeTextDocument(ev: vscode.TextDocumentChangeEvent): void {
 		// 	},
 		// 	newLength: element.text.length
 		// });
-		// fs.appendFileSync('D:\\tmp\\changes.out',
-		// 	'---------------------------------------\n' +
-		// 	src.text + `\n docVersion = ${ev.document.version}`);
+		fs.appendFileSync('D:\\tmp\\changes.out',
+			'---------------------------------------\n' +
+			JSON.stringify(src.statements) + `\n docVersion = ${ev.document.version}`);
 
 	}
 	catch (e) {
@@ -133,9 +196,11 @@ function onDidChangeTextDocument(ev: vscode.TextDocumentChangeEvent): void {
 
 function openFormEditor() {
 	try {
-		if (!formOpened) {
+		RunFormEditor();
+
+		if (!changesSet) {
 			vscode.workspace.onDidChangeTextDocument(onDidChangeTextDocument);
-			formOpened = true;
+			changesSet = true;
 		}
 		vscode.window.showInformationMessage('openformeditor called');
 		let curDoc = vscode.window.activeTextEditor.document;
@@ -146,7 +211,7 @@ function openFormEditor() {
 			src = ts.createSourceFile(curDoc.fileName, text, ts.ScriptTarget.ES2016, false);
 			sourceFiles[fileName] = src;
 		}
-		let result = formParser.parseSource(src);
+		let result = baz.parseSource(src);
 		result.ClearCircular();
 
 
@@ -174,6 +239,8 @@ export function activate(context: vscode.ExtensionContext) {
 	vscode.commands.registerCommand('bazis-debug.addDeclarationFiles', () => {
 		addDeclarationFiles();
 	});
+
+	formEditorPath = vscode.workspace.getConfiguration('bazis-debug').get('formEditorPath', '');
 
 	vscode.commands.registerCommand('bazis-debug.openFormEditor', openFormEditor);
 

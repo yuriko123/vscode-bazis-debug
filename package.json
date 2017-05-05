@@ -25,13 +25,14 @@
     "node": "^6.2.0"
   },
   "dependencies": {
-    "vscode-debugprotocol": "^1.15.0-pre.4",
-    "vscode-debugadapter": "^1.15.0-pre.5",
-    "source-map": "0.5.6",
-    "vscode-nls": "^2.0.1",
-    "request-light": "^0.1.0",
     "glob": "7.1.1",
     "minimatch": "3.0.3",
+    "request-light": "^0.1.0",
+    "source-map": "0.5.6",
+    "vscode-debugadapter": "^1.15.0-pre.5",
+    "vscode-debugprotocol": "^1.15.0-pre.4",
+    "vscode-nls": "^2.0.1",
+    "websocket": "^1.0.24",
     "winreg": "^1.2.2"
   },
   "repository": {
@@ -71,7 +72,17 @@
     "*"
   ],
   "contributes": {
-    "commands":[
+    "configuration": {
+      "title": "Bazis-Debug Configuration",
+      "properties": {
+        "bazis-debug.formEditorPath": {
+          "type": "string",
+          "default": "",
+          "description": "Путь к приложению редактора форм"
+        }
+      }
+    },
+    "commands": [
       {
         "command": "bazis-debug.addDeclarationFiles",
         "title": "Добавить/обновить файлы определений *.d.ts для Базис-Мебельщик"
@@ -81,7 +92,7 @@
         "title": "Открыть редактор форм"
       }
     ],
-    "keybindings":[
+    "keybindings": [
       {
         "command": "bazis-debug.openFormEditor",
         "key": "F7"
@@ -162,7 +173,7 @@
                 "description": "%bazis.timeout.description%",
                 "default": 10000
               },
-              "noDebug":{
+              "noDebug": {
                 "type": "boolean",
                 "description": "%bazis.noDebug.description%",
                 "default": false
