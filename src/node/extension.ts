@@ -10,7 +10,7 @@ import * as nls from 'vscode-nls';
 import * as fs from 'fs';
 import * as ts from 'typescript';
 import * as cp from 'child_process';
-import { baz } from './formParser';
+import { baz } from './CodeParser';
 var WebSocketClient = require('websocket').client;
 
 const localize = nls.config(process.env.VSCODE_NLS_CONFIG)();
@@ -89,7 +89,7 @@ let socketPort = 7800;
 
 function logError(error: string): void {
 	if (logging) {
-		fs.appendFileSync(logFile, `${loggingDate ? date.getDate() + ':' : ''}${error}\n`)
+		fs.appendFileSync(logFile, `${loggingDate ? `${date.getMonth()}:${date.getDate()}:` : ''}${error}\n`)
 	}
 }
 

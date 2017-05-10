@@ -2,6 +2,14 @@ import * as ts from 'typescript';
 
 export namespace baz {
 
+	enum InfoKind{
+		SourceInfo = 0,
+		BaseInfo = 1,
+		ValueInfo = 2,
+		ObjectInfo = 3,
+		FunctionInfo = 4
+	}
+
 	class ParseError extends Error {
 
 	}
@@ -16,6 +24,7 @@ export namespace baz {
 			this.name = name;
 		}
 		name: string;
+		kind: InfoKind = InfoKind.BaseInfo;
 		range: InfoRange;
 		source: SourceInfo;
 		ClearCircular() {
@@ -51,7 +60,15 @@ export namespace baz {
 			else
 				throw new ParseError('can\'t add BaseInfo to ObjectArray')
 		}
-		array: Array<ObjectInfo>
+		ClearCircular() {
+			this.source = undefined;
+			for (let i =0; i < this.array.length; i++){
+				if (this.array[i] instanceof ObjectInfo){
+					this.array[i] = this.array[i].GetFullName().join('.');
+				}
+			}
+		}
+		array: Array<ObjectInfo> = [];
 	}
 
 	class ObjectInfo extends BaseInfo {
@@ -60,12 +77,22 @@ export namespace baz {
 			if (range)
 				this.range = range;
 			this.initialized = init || false;
+			this.kind = InfoKind.ObjectInfo;
 		}
+		private _value?: string;
+
 		initialized: boolean = false;
 		/**
 		 * value of this variable (only for primitive variables)
 		 */
-		value?: string;
+		set value(val: string){
+			this._value = val;
+			this.kind = InfoKind.ValueInfo;
+		}
+		get value(): string{
+			return this._value || '';
+		}
+		// value?: string;
 		owner?: ObjectInfo;
 		/**
 		 * reference to function, which creates this object
@@ -110,6 +137,20 @@ export namespace baz {
 			}
 			else
 				this.refersTo = undefined;
+			let props = this.props;
+			for (let i = props.length - 1; i >= 0; i--){
+				let prop = props[i];
+				if (prop.range)
+					prop.ClearCircular();
+				else
+					props.splice(i, 1);
+			}
+			// this.props.forEach((prop, i, props) => {
+			// 	prop.ClearCircular()
+			// });
+			if (this.initializer && this.initializer instanceof ObjectInfo){
+				this.initializer.ClearCircular();
+			}
 		}
 
 		CopyParams(newInfo: ObjectInfo, structureOnly?: boolean) {
@@ -159,7 +200,7 @@ export namespace baz {
 				}
 				else {
 					if (this instanceof FunctionInfo)
-						return this
+						return this.Copy();
 					else
 						throw new Error(`Object ${this.GetFullName().join('.')} is not function`);
 				}
@@ -207,14 +248,6 @@ export namespace baz {
 		ClearCircular() {
 			this.source = undefined;
 			this.ConvertPointersToString();
-			if (this.creator && this.creator instanceof ObjectInfo)
-				this.creator = this.creator.GetFullName().join('.');
-			this.props.forEach((prop, i, props) => {
-				if (prop instanceof FormInfo)
-					props.splice(i, 1);
-				else
-					prop.ClearCircular();
-			});
 			// this.args.forEach((arg, i, arr) => {
 			// 	if (arg instanceof ObjectInfo) {
 			// 		if (arg.name)
@@ -230,18 +263,19 @@ export namespace baz {
 
 	class FunctionInfo extends ObjectInfo {
 		args: Array<ObjectInfo> = [];
+		ClearCircular(){
+			this.source = undefined;
+			this.ConvertPointersToString();
+			this.args.forEach((arg, i, args) => {
+				arg.ClearCircular();
+			});
+		}
 		public Copy(): FunctionInfo{
 			let result = new FunctionInfo(this.name);
 			result.owner = this.owner;
 			return result;
 		}
-
-	}
-
-	class FormInfo extends ObjectInfo {
-		constructor(name: string, range?: InfoRange, init?: boolean) {
-			super(name, range, init);
-		}
+		kind: InfoKind = InfoKind.FunctionInfo;
 	}
 
 	export class SourceInfo extends BaseInfo {
@@ -250,6 +284,7 @@ export namespace baz {
 			this.source = this;
 			this.range = range;
 			this.variables = [];
+			this.kind = InfoKind.SourceInfo;
 		}
 		private AddVar(variable: ObjectInfo) {
 			variable.source = this;
@@ -259,7 +294,12 @@ export namespace baz {
 		public AddNewItem(item: BaseInfo) {
 			if (!(item instanceof ObjectInfo))
 				throw new ParseError('new item is not ObjectInfo');
-			this.AddVar(item);
+			if (item.owner){
+				item.owner.AddNewItem(item);
+			}
+			else{
+				this.AddVar(item);
+			}
 		}
 		/**
 		 * find variable by FULL name
@@ -281,6 +321,11 @@ export namespace baz {
 				throw new Error(`can't create variable ${fullName.join('.')} in SourceInfo.FindVariable`);
 			return result;
 		}
+
+		/**
+		 * it will return function (even if it wasn't created)
+		 * @param fullName splitted full name of function
+		 */
 		public FindFunction(fullName: string[]): FunctionInfo {
 			let result: FunctionInfo | undefined;
 			// maybe it will be optional
@@ -295,14 +340,23 @@ export namespace baz {
 			result = newObj.FindFunction(fullName);
 			if (!result)
 				throw new Error(`can't create function ${fullName.join('.')} in SourceInfo.FindFunction`);
-			return result;
+			return result.Copy();
 
 		}
 		ClearCircular() {
 			this.source = undefined;
-			this.variables.forEach(element => {
-				element.ClearCircular();
-			});
+			let vars = this.variables;
+			for (let i = vars.length - 1; i >=0; i--){
+				let elem = vars[i];
+				if (elem.range){
+					elem.ClearCircular();
+				}
+				else
+					vars.splice(i, 1);
+			}
+			// this.variables.forEach(element => {
+			// 	element.ClearCircular();
+			// });
 		}
 		variables: Array<ObjectInfo>;
 	}
@@ -359,6 +413,7 @@ export namespace baz {
 				case (ts.SyntaxKind.CallExpression): {
 					let expr = <ts.CallExpression>init;
 					let func = new FunctionInfo('');
+					func.source = obj.source;
 					let parsedFunc = parseNode(expr, func);
 					if (parsedFunc instanceof FunctionInfo)
 						obj.initializer = parsedFunc;
@@ -377,16 +432,25 @@ export namespace baz {
 	 */
 	function parseVariableDeclaration(decl: ts.VariableDeclaration, info: BaseInfo) {
 		let declName = decl.name;
+		let value : string = '';
 		let objName = '';
 		switch (declName.kind) {
 			case (ts.SyntaxKind.Identifier): {
-				objName = (<ts.Identifier>declName).text;
+				let id = (<ts.Identifier>declName);
+				objName = id.text;
+				value = id.text;
 				break;
+			}
+			default:{
+				throw new Error(`VariableDeclaration: Syntax kind ${declName.kind} missed`);
 			}
 		}
 		if (!info.source)
 			throw new ParseError(`info '${info.name}' doesn't have a source`);
 		let newObj = MakeObject(objName, info.source, { pos: decl.pos, end: decl.end })
+		if (value){
+			newObj.value = value;
+		}
 		parseInitializer(decl.initializer, newObj);
 		info.AddNewItem(newObj);
 	}
@@ -394,7 +458,9 @@ export namespace baz {
 	function parseCallExpression(expr: ts.CallExpression, info: BaseInfo): FunctionInfo | undefined {
 		let fullCallName = getFullNameOfObjectInfo(expr.expression);
 		let newFunc = info.source.FindFunction(fullCallName);
+		newFunc.range = {pos: expr.pos, end: expr.end};
 		let funcArgs = new ObjectArrayInfo('');
+		funcArgs.source = info.source;
 		for (let i = 0; i < expr.arguments.length; i++)
 			parseNode(expr.arguments[i], funcArgs);
 		newFunc.args = newFunc.args.concat(funcArgs.array);
@@ -407,9 +473,57 @@ export namespace baz {
 		}
 	}
 
+	function parsePropertyAssignment(node: ts.PropertyAssignment, info: BaseInfo){
+		let propName = '';
+		switch (node.name.kind){
+			case ts.SyntaxKind.Identifier:{
+				propName = (<ts.Identifier>node.name).text;
+				break;
+			}
+			default:{
+				break;
+			}
+		}
+		if (propName){
+			let newProp = new ObjectInfo(propName, {pos: node.pos, end: node.end});
+			newProp.source = info.source;
+			parseInitializer(node.initializer, newProp);
+			info.AddNewItem(newProp);
+		}
+	}
+
+	function MakeValue(value: string | boolean, range: InfoRange): ObjectInfo{
+		let result = new ObjectInfo('', range);
+		result.value = value.toString();
+		return result
+	}
+
 	function parseNode(node: ts.Node, info: BaseInfo): BaseInfo {
 		let needParseChilds = false;
 		switch (node.kind) {
+			case ts.SyntaxKind.FalseKeyword:{
+				let newVal = MakeValue(false, {pos: node.pos, end: node.end});
+				info.AddNewItem(newVal);
+				break;
+			}
+			case ts.SyntaxKind.TrueKeyword:{
+				let newVal = MakeValue(true, {pos: node.pos, end: node.end});
+				info.AddNewItem(newVal);
+				break;
+			}
+			case ts.SyntaxKind.StringLiteral:
+			case ts.SyntaxKind.NumericLiteral:{
+				let value = (<ts.NumericLiteral>node).text;
+				let newVal = MakeValue(value, {pos: node.pos, end: node.end});
+				info.AddNewItem(newVal);
+				break;
+			}
+			case ts.SyntaxKind.Identifier: {
+				let name = (<ts.Identifier>node).text;
+				let identifierObject = info.source.FindVariable([name]);
+				info.AddNewItem(identifierObject);
+				break;
+			}
 			case ts.SyntaxKind.ExpressionStatement: {
 				let expr = (<ts.ExpressionStatement>node).expression;
 				if (expr)
@@ -423,8 +537,12 @@ export namespace baz {
 			case ts.SyntaxKind.BinaryExpression: {
 				break;
 			}
+			case ts.SyntaxKind.PropertyAssignment: {
+				parsePropertyAssignment(<ts.PropertyAssignment>node, info);
+				break;
+			}
 			case ts.SyntaxKind.CallExpression: {
-				//if node isn't
+				//if node isn't sourceinfo
 				let call = parseCallExpression(<ts.CallExpression>node, info);
 				if (call){
 					info = call;
@@ -432,12 +550,17 @@ export namespace baz {
 				break;
 			}
 			case ts.SyntaxKind.VariableStatement:
+			case ts.SyntaxKind.VariableDeclarationList:
 			case ts.SyntaxKind.SourceFile: {
 				needParseChilds = true;
 				break;
 			}
+			case ts.SyntaxKind.EndOfFileToken:{
+				break;
+			}
 			default: {
 				// needParseChilds = true;
+				require('fs').appendFileSync('D:\\tmp\\defaultNodes', `missed kind: ${node.kind}\n`);
 				break;
 			}
 		}
