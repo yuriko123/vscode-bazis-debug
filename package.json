@@ -32,7 +32,6 @@
     "vscode-debugadapter": "^1.15.0-pre.5",
     "vscode-debugprotocol": "^1.15.0-pre.4",
     "vscode-nls": "^2.0.1",
-    "websocket": "^1.0.24",
     "winreg": "^1.2.2"
   },
   "repository": {
@@ -79,6 +78,24 @@
           "type": "string",
           "default": "",
           "description": "Путь к приложению редактора форм"
+        },
+        "bazis-debug.bazisVersion": {
+          "type": "string",
+          "default": "Bazis10",
+          "enum": [
+            "Bazis10"
+          ],
+          "description": "Версия модуля Базис"
+        },
+        "bazis-debug.logging": {
+          "type": "boolean",
+          "default": false,
+          "description": "Включить запись ошибок в лог. По умолчанию выключено"
+        },
+        "bazis-debug.lastSessionLogging": {
+          "type": "boolean",
+          "default": false,
+          "description": "Включить полный лог последней сессии. По умолчанию выключено"
         }
       }
     },

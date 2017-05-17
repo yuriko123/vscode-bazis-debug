@@ -8,10 +8,13 @@ import * as vscode from 'vscode';
 import { join, isAbsolute } from 'path';
 import * as nls from 'vscode-nls';
 import * as fs from 'fs';
+import * as path from 'path';
 import * as ts from 'typescript';
+import * as Net from 'net';
 import * as cp from 'child_process';
-import { baz } from './CodeParser';
-var WebSocketClient = require('websocket').client;
+import { bazCode } from './CodeParser';
+import { bazForms } from './formCreator';
+import * as Registry from 'winreg';
 
 const localize = nls.config(process.env.VSCODE_NLS_CONFIG)();
 
@@ -65,81 +68,167 @@ function addDeclarationFiles() {
 }
 
 let formOpened: boolean = false;
+let currentFormName: string | undefined;
 let formEditorPath: string = '';
 let formEditorProcess: cp.ChildProcess;
 
+/**constants of typ */
+const MessageType = {
+	FormInfo: 'forminfo',
+	UpdateInfo: 'update'
+}
+const FormEditorFileName = 'FormEditor.exe';
+
 let sourceFiles: Array<ts.SourceFile> = [];
 let curTimeout: NodeJS.Timer;
-let changesSet = false;
-let logFile = vscode.extensions.getExtension('BazisSoft.bazis-debug').extensionPath + '\\log.out';
+let logDir = vscode.extensions.getExtension('BazisSoft.bazis-debug').extensionPath + '\\';
+let logFile = logDir + 'log.out';
+let sessionLogfile = logDir + 'session.out';
 let date = new Date();
 //client for TCP connection to form editor
 
-let client = new WebSocketClient();
-let clientConnection;
+let client = new Net.Socket();
 
 // should be able to change in settings
 let parseTimeout = 1500;
 let updateOnEnter: boolean = true;
 let updateOnSemicolon: boolean = true;
 let logging = true;
+let lastSessionLogging = true;
 let loggingDate = true;
 
 let socketPort = 7800;
 
-function logError(error: string): void {
-	if (logging) {
-		fs.appendFileSync(logFile, `${loggingDate ? `${date.getMonth()}:${date.getDate()}:` : ''}${error}\n`)
+function CurrentDate(): string {
+	return loggingDate ? `${date.getMonth() + 1}.${date.getDate() + 1} ::` : ''
+}
+
+function SessionLog(msg: string) {
+	if (lastSessionLogging) {
+		fs.appendFileSync(sessionLogfile, CurrentDate() + msg + '\n');
 	}
 }
 
-function RunFormEditor() {
-	if (formEditorPath) {
-		if (!formOpened) {
-			vscode.window.showInformationMessage(`port = ${socketPort}\npath = ${formEditorPath}`);
+function logError(error: string): void {
+	if (logging) {
+		fs.appendFileSync(logFile, `${CurrentDate()}${error}\n`);
+	}
+}
+
+function ShowError(error: string): void {
+	if (logging) {
+		vscode.window.showErrorMessage(error);
+	}
+}
+
+function sendMessage(client: Net.Socket, msg: string) {
+	if (client) {
+		const data = 'Content-Length: ' + Buffer.byteLength(msg, 'utf8') + '\r\n' + msg;
+		//let buf = new Buffer(data, 'utf8');
+		client.write(data);
+		//client.push(data);
+	}
+}
+
+function RunFormEditor(formInfo?: bazForms.ParsedForm) {
+	if (!formOpened) {
+		if (formEditorPath) {
+			if (lastSessionLogging) {
+				fs.writeFileSync(sessionLogfile, '');
+			}
 			formEditorProcess = cp.spawn(formEditorPath, ['--port', socketPort.toString()]);
+			client.connect(socketPort);
 
-			client.on('connectFailed', function (error) {
-				console.log('Connect Error: ' + error.toString());
+			let connected = false;
+
+			client.on('connect', err => {
+				connected = true;
+				if (formInfo) {
+					updateFormEditor(formInfo);
+				}
+				//this._initialize(response);
 			});
 
-			client.on('connect', function (connection) {
-				clientConnection = connection;
-				connection.on('error', function (error) {
-					// logError(`socket error: ${error}`);
-				});
-				connection.on('close', function () {
-					formEditorProcess.kill();
-					formOpened = false;
-				});
-				connection.on('message', function (message) {
-					if (message.type === 'utf8') {
-						console.log("Received: '" + message.utf8Data + "'");
+			const timeout = 10000; //timeout of 10 sec to connect
+
+			const endTime = new Date().getTime() + timeout;
+			client.on('error', err => {
+				if (connected) {
+					// since we are connected this error is fatal
+					if (logging)
+						logError('Client error:' + (err.stack || ''));
+					//this._terminated('socket error');
+				} else {
+					// we are not yet connected so retry a few times
+					if ((<any>err).code === 'ECONNREFUSED' || (<any>err).code === 'ECONNRESET') {
+						const now = new Date().getTime();
+						if (now < endTime) {
+							setTimeout(() => {
+								client.connect(socketPort);
+							}, 200);		// retry after 200 ms
+						} else {
+							logError(`Cannot connect to runtime process: timeout after ${timeout}`)
+						}
+					} else {
+						logError('Cannot connect to runtime process: error = ' + (<any>err).code);
 					}
-				});
+				}
 			});
 
-			client.connect(`ws://localhost:${socketPort}/`);
+			client.on("data", (data: Buffer) => {
+				logError('Data: ' + data.toString('utf8'));
+				return;
+			})
+
+			client.on('end', err => {
+				if (formEditorProcess)
+					formEditorProcess.kill();
+				formOpened = false;
+				client.removeAllListeners();
+				client.destroy();
+			});
 
 			formOpened = true;
 		}
-		else {
-			clientConnection.sendUTF('this is message');
-		}
+	}
+	else if (formInfo) {
+		updateFormEditor(formInfo);
 	}
 }
 
 
-function updateForm(src: ts.SourceFile) {
-	let parsedSource = baz.parseSource(src, logError);
-	parsedSource.ClearCircular();
-	let msg = JSON.stringify(parsedSource);
-	clientConnection.sendUTF(msg);
+function updateSource(src: ts.SourceFile) {
+	let parsedSource = bazCode.parseSource(src, logError);
+	let formsInfo = bazForms.MakeForms(parsedSource, logError);
+	if (currentFormName) {
+		let form: bazForms.ParsedForm | undefined;
+		for (let i = 0; i < formsInfo.length; i++) {
+			let info = formsInfo[i];
+			if (info.owner + '.' + info.name === currentFormName) {
+				form = info;
+				break;
+			}
+		}
+		if (form) {
+			updateFormEditor(form);
+		}
+	}
+}
 
+function updateFormEditor(form: bazForms.ParsedForm) {
 
+	let message = {
+		type: MessageType.FormInfo,
+		info: form
+	}
+	let stringMsg = JSON.stringify(message);
+	sendMessage(client, stringMsg);
+	SessionLog(stringMsg);
 }
 
 function onDidChangeTextDocument(ev: vscode.TextDocumentChangeEvent): void {
+	if (!formOpened)
+		return;
 	try {
 		if (curTimeout)
 			clearTimeout(curTimeout);
@@ -168,10 +257,10 @@ function onDidChangeTextDocument(ev: vscode.TextDocumentChangeEvent): void {
 		});
 		sourceFiles[fileName] = src;
 		if (NeedUpdate)
-			updateForm(src)
+			updateSource(src)
 		else
 			curTimeout = setTimeout(() => {
-				updateForm(src);
+				updateSource(src);
 			}, parseTimeout);
 
 		// let element = ev.contentChanges[0];
@@ -195,14 +284,9 @@ function onDidChangeTextDocument(ev: vscode.TextDocumentChangeEvent): void {
 }
 
 function openFormEditor() {
+	if (!formEditorPath)
+		return;
 	try {
-		RunFormEditor();
-
-		if (!changesSet) {
-			vscode.workspace.onDidChangeTextDocument(onDidChangeTextDocument);
-			changesSet = true;
-		}
-		vscode.window.showInformationMessage('openformeditor called');
 		let curDoc = vscode.window.activeTextEditor.document;
 		let text = curDoc.getText();
 		let fileName = curDoc.fileName;
@@ -211,15 +295,39 @@ function openFormEditor() {
 			src = ts.createSourceFile(curDoc.fileName, text, ts.ScriptTarget.ES2016, false);
 			sourceFiles[fileName] = src;
 		}
-		let result = baz.parseSource(src, logError);
-		result.ClearCircular();
-
-		try {
-			fs.writeFileSync('D:\\tmp\\src.out', JSON.stringify(src.statements));
-			// fs.appendFileSync('D:\\tmp\\src.out', `\n FULL:\n${JSON.stringify(src)}`);
+		let result = bazCode.parseSource(src, logError);
+		let forms = bazForms.MakeForms(result, logError);
+		let formNames: string[] = [];
+		for (let i = 0; i < forms.length; i++) {
+			formNames.push(forms[i].owner + '.' + forms[i].name);
 		}
-		catch (e) { }
-		fs.writeFileSync('D:\\tmp\\result.out', JSON.stringify(result));
+		if (formNames.length > 0) {
+			vscode.window.showQuickPick(formNames, {
+				placeHolder: 'Выберите имя формы'
+			}).then((value: string) => {
+				if (!value)
+					return;
+				let index = formNames.indexOf(value);
+				if (index >= 0) {
+					let formInfo = forms[index];
+					if (formInfo) {
+						currentFormName = value;
+						RunFormEditor(formInfo);
+					}
+				}
+			})
+		}
+		else
+			vscode.window.showErrorMessage('There is no any form');
+		if (logging) {
+			try {
+				fs.writeFileSync(logDir + 'src.out', JSON.stringify(src.statements));
+				fs.writeFileSync(logDir + 'forms.out', JSON.stringify(forms));
+				result.ClearCircular();
+				fs.writeFileSync(logDir + 'result.out', JSON.stringify(result));
+			}
+			catch (e) {/*ignore any error*/ }
+		}
 
 	}
 	catch (e) {
@@ -239,11 +347,39 @@ const initialConfigurations = [
 ];
 
 export function activate(context: vscode.ExtensionContext) {
+	vscode.workspace.onDidChangeTextDocument(onDidChangeTextDocument)
 	vscode.commands.registerCommand('bazis-debug.addDeclarationFiles', () => {
 		addDeclarationFiles();
 	});
 
-	formEditorPath = vscode.workspace.getConfiguration('bazis-debug').get('formEditorPath', '');
+	//read settings
+	let bazConfig = vscode.workspace.getConfiguration('bazis-debug');
+	logging = bazConfig.get('logging', false);
+	lastSessionLogging = bazConfig.get('lastSessionLogging', false);
+
+	formEditorPath = bazConfig.get('formEditorPath', '');
+	if (!formEditorPath) {
+		let regKey = new Registry({
+			hive: Registry.HKCU,
+			key: '\\Software\\BazisSoft\\' + bazConfig.get('bazisVersion')
+		})
+		regKey.values((err, items) => {
+			if (!err) {
+				let exePath: string | undefined;
+				for (var i = 0; i < items.length; i++) {
+					if (items[i].name === 'Path') {
+						exePath = items[i].value;
+						break;
+					}
+				}
+				if (exePath) {
+					formEditorPath = path.dirname(exePath) + '\\' + FormEditorFileName;
+					if (!fs.existsSync(formEditorPath))
+						formEditorPath = '';
+				}
+			}
+		});
+	}
 
 	vscode.commands.registerCommand('bazis-debug.openFormEditor', openFormEditor);
 
