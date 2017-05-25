@@ -9,6 +9,13 @@ export namespace bazCode {
 		missedNodes.push(msg);
 	}
 
+	export enum InfoState {
+		None = 0,
+		NeedProp = 1,
+		NeedInitialization = 2,
+		ParseInitialization = 3
+	}
+
 	export enum InfoKind {
 		SourceInfo = 0,
 		BaseInfo = 1,
@@ -23,21 +30,36 @@ export namespace bazCode {
 	}
 
 	export class InfoRange {
+		constructor(pos?: number, end?: number){
+			this.pos = pos || 0;
+			this.end = end || 0;
+		}
 		pos: number;
 		end: number
+		Copy(): InfoRange{
+			let result = new InfoRange(this.pos, this.end);
+			return result
+		}
 	}
 
 	export class BaseInfo {
-		constructor(name: string) {
+		constructor(name: string, src: SourceInfo) {
 			this.name = name;
+			this.source = src;
+		}
+		private _prevStates: Array<InfoState> = [];
+		PushState(st: InfoState){
+			this._prevStates.push(this.state);
+			this.state = st;
+		}
+		PopState(){
+			this.state = this._prevStates.pop() || InfoState.None;
 		}
 		name: string;
 		kind: InfoKind = InfoKind.BaseInfo;
 		range: InfoRange;
+		state: InfoState = InfoState.None;
 		source: SourceInfo;
-		ClearCircular() {
-			this.source = <any>undefined;
-		}
 		/**
 		 * add item to this info
 		 * @param item An object/var/function, will be added to info
@@ -45,20 +67,14 @@ export namespace bazCode {
 		AddNewItem(item: BaseInfo) {
 			throw new ParseError('can\'t add item to BaseInfo')
 		}
-		// CopyParams(newInfo: BaseInfo) {
-		// 	newInfo.range = this.range;
-		// 	newInfo.source = this.source;
-		// }
-		// CopyVar(): ObjectInfo {
-		// 	let result = new ObjectInfo(this.name);
-		// 	this.CopyParams(result);
-		// 	return result;
-		// }
-		// CopyObj(): ObjectInfo {
-		// 	let result = new ObjectInfo(this.name);
-		// 	this.CopyParams(result);
-		// 	return result;
-		// }
+		CopyParamsTo(newInfo: BaseInfo, circular: boolean) {
+			newInfo.range = this.range.Copy();
+		}
+		NonCircularCopy(): BaseInfo{
+			let result = new BaseInfo(this.name, <any>undefined);
+			this.CopyParamsTo(result, false);
+			return result;
+		}
 	}
 
 	class ObjectArrayInfo extends BaseInfo {
@@ -80,8 +96,8 @@ export namespace bazCode {
 	}
 
 	export class ObjectInfo extends BaseInfo {
-		constructor(name: string, range?: InfoRange, init?: boolean) {
-			super(name);
+		constructor(name: string, src: SourceInfo, range?: InfoRange, init?: boolean) {
+			super(name, src);
 			if (range)
 				this.range = range;
 			this.initialized = init || false;
@@ -94,6 +110,7 @@ export namespace bazCode {
 		set value(val: string) {
 			this._value = val;
 			this.kind = InfoKind.ValueInfo;
+			this.initialized = true;
 		}
 		get value(): string {
 			return this._value || '';
@@ -111,6 +128,7 @@ export namespace bazCode {
 		set refersTo(ref: ObjectInfo) {
 			this._ref = ref;
 			this.kind = InfoKind.ReferenceInfo;
+			this.initialized = true;
 		}
 		owner?: ObjectInfo;
 		/**
@@ -118,6 +136,8 @@ export namespace bazCode {
 		 */
 		initializer?: ObjectInfo;
 		initialized: boolean = false;
+		/**range of full expression, which initializes this object */
+		initRange: InfoRange;
 		props: ObjectInfo[] = [];
 
 
@@ -135,50 +155,32 @@ export namespace bazCode {
 			result.push(this.name);
 			return result;
 		}
-		/**
-		 * It will replace references to string
-		 */
-		ConvertPointersToString() {
-			if (this.owner && this.owner instanceof ObjectInfo) {
-				this.owner = <any>this.owner.GetFullName().join('.');
+
+		CopyParamsTo(newInfo: ObjectInfo, circular: boolean) {
+			newInfo.initRange = this.initRange.Copy();
+			newInfo.value = this.value;
+			if (circular) {
+				newInfo.owner = this.owner;
+				newInfo.refersTo = this.refersTo;
+				newInfo.initializer = this.initializer;
+				newInfo.props = this.props;
 			}
-			if (this.refersTo && this.refersTo instanceof ObjectInfo) {
-				this.refersTo = <any>this.refersTo.GetFullName().join('.');
-			}
-			let props = this.props;
-			for (let i = props.length - 1; i >= 0; i--) {
-				let prop = props[i];
-				if (prop.range)
-					prop.ClearCircular();
-				else
-					props.splice(i, 1);
-			}
-			if (this.initializer && this.initializer instanceof ObjectInfo) {
-				this.initializer.ClearCircular();
+			else{
+				if (this.owner)
+					newInfo.owner = <any>this.owner.GetFullName();
+				if (this.refersTo)
+					newInfo.refersTo = <any>this.refersTo.GetFullName();
+				if (this.initializer)
+					newInfo.initializer = <any>this.initializer.GetFullName();
+				this.props.forEach(prop=> {
+					newInfo.props.push(prop.NonCircularCopy());
+				})
 			}
 		}
 
-		CopyParams(newInfo: ObjectInfo, structureOnly?: boolean) {
-			newInfo.range = this.range;
-			newInfo.source = this.source;
-			newInfo.owner = this.owner;
-			if (!structureOnly) {
-				newInfo.value = this.value;
-				newInfo.initialized = this.initialized;
-				newInfo.refersTo = this.refersTo;
-				if (newInfo instanceof ObjectInfo) {
-					newInfo.props = this.props;
-				}
-			}
-		}
-		CopyVar(structureOnly?: boolean): ObjectInfo {
-			let result = new ObjectInfo(this.name);
-			this.CopyParams(result, structureOnly);
-			return result;
-		}
-		CopyObj(structureOnly?: boolean): ObjectInfo {
-			let result = new ObjectInfo(this.name);
-			this.CopyParams(result, structureOnly);
+		NonCircularCopy(): ObjectInfo{
+			let result = new ObjectInfo(this.name, <any>undefined, this.range.Copy(), this.initialized);
+			this.CopyParamsTo(result, false);
 			return result;
 		}
 		FindFunction(names: string[]): FunctionInfo | undefined {
@@ -195,11 +197,10 @@ export namespace bazCode {
 					}
 					// if no one prop was found
 					// maybe it's not good to create object if names count more than one
-					let newObj: ObjectInfo = names.length === 1 ? new FunctionInfo(names[0]) : new ObjectInfo(names[0]);
-					newObj.source = this.source;
+					let newObj: ObjectInfo = names.length === 1 ? new FunctionInfo(names[0], this.source) : new ObjectInfo(names[0], this.source);
 					newObj.owner = this;
+					this.source.AddNewItem(newObj);
 					this.props.push(newObj);
-					//
 					result = newObj.FindFunction(newName);
 					return result;
 				}
@@ -212,25 +213,27 @@ export namespace bazCode {
 			}
 			return undefined;
 		}
-		FindVariable(names: string[]): ObjectInfo | undefined {
+		FindVariable(names: string[], CreateIfNotFound: boolean): ObjectInfo | undefined {
 			if (this.name === names[0]) {
 				if (names.length > 1) {
 					names.splice(0, 1);
 					let result: ObjectInfo | undefined;
 					let newName = names;
 					for (let i = 0; i < this.props.length; i++) {
-						result = this.props[i].FindVariable(newName)
+						result = this.props[i].FindVariable(newName, CreateIfNotFound)
 						if (result) {
 							return result;
 						}
 					}
 					// if no one prop was found
-					result = new ObjectInfo(names[0]);
-					result.source = this.source;
-					result.owner = this;
-					this.props.push(result);
-					//
-					result = result.FindVariable(newName);
+					if (CreateIfNotFound){
+						result = new ObjectInfo(names[0], this.source, this.range.Copy());
+						result.owner = this;
+						result.initRange = this.initRange;
+						this.source.AddNewItem(result);
+						this.props.push(result);
+						result = result.FindVariable(newName, CreateIfNotFound);
+					}
 					return result;
 				}
 				else
@@ -246,28 +249,24 @@ export namespace bazCode {
 		AddNewItem(item: BaseInfo) {
 			if (!(item instanceof ObjectInfo))
 				throw new ParseError('item is not a variable');
-			if (item.kind === InfoKind.ValueInfo) {
-				this.value = item.value;
+			if (this.state === InfoState.NeedInitialization) {
+				if (item.kind === InfoKind.ValueInfo)
+					this.value = item.value;
+				else
+					this.initializer = item;
+				this.initialized = true;
 			}
 			else {
-				(<ObjectInfo>item).owner = this;
-				item.source = this.source;
-				this.props.push(item);
+					(<ObjectInfo>item).owner = this;
+					switch (this.state){
+						case InfoState.ParseInitialization:{
+							item.initRange = this.initRange;
+							break;
+						}
+					}
+					this.props.push(item);
+					this.source.AddNewItem(item);
 			}
-		}
-		ClearCircular() {
-			this.source = <any>undefined;
-			this.ConvertPointersToString();
-			// this.args.forEach((arg, i, arr) => {
-			// 	if (arg instanceof ObjectInfo) {
-			// 		if (arg.name)
-			// 			arr[i] = { name: arg.name };
-			// 		else if (arg.value)
-			// 			arr[i] = { value: arg.value };
-			// 		else
-			// 			throw new ParseError('argument have no name and no value');
-			// 	}
-			// })
 		}
 		ClearEmpty() {
 			let props = this.props;
@@ -283,40 +282,40 @@ export namespace bazCode {
 
 	export class FunctionInfo extends ObjectInfo {
 		args: Array<ObjectInfo> = [];
-		ClearCircular() {
-			this.source = <any>undefined;
-			this.ConvertPointersToString();
-			this.args.forEach((arg, i, args) => {
-				arg.ClearCircular();
-			});
-		}
 		public Copy(): FunctionInfo {
-			let result = new FunctionInfo(this.name);
+			let result = new FunctionInfo(this.name, this.source);
 			result.owner = this.owner;
+			return result;
+		}
+		NonCircularCopy(): FunctionInfo{
+			let result = new FunctionInfo(this.name, <any> undefined, this.range.Copy(), this.initialized);
+			this.args.forEach( arg =>{
+				result.args.push(arg.NonCircularCopy());
+			});
 			return result;
 		}
 		kind: InfoKind = InfoKind.FunctionInfo;
 	}
 
 	export class SourceInfo extends BaseInfo {
-		constructor(name: string, range: InfoRange) {
-			super(name);
+		constructor(fileName: string, range: InfoRange) {
+			super(fileName, <any>undefined);
+			this.fileName = fileName;
 			this.source = this;
 			this.range = range;
 			this.variables = [];
 			this.kind = InfoKind.SourceInfo;
 		}
 		private AddVar(variable: ObjectInfo) {
-			variable.source = this;
 			this.variables.push(variable);
 		}
 
 		public AddNewItem(item: BaseInfo) {
 			if (!(item instanceof ObjectInfo))
 				throw new ParseError('new item is not ObjectInfo');
-			if (item.owner) {
-				item.owner.AddNewItem(item);
-			}
+			// if (item.owner) {
+			// 	item.owner.AddNewItem(item);
+			// }
 			else {
 				this.AddVar(item);
 			}
@@ -325,21 +324,32 @@ export namespace bazCode {
 		 * find variable by FULL name
 		 * @param fullName splitted full object name like ['OwnerName', 'Name']
 		 */
-		public FindVariable(fullName: string[]): ObjectInfo {
+		public FindVariable(fullName: string[], createIfNotFound: boolean): ObjectInfo {
 			let result: ObjectInfo | undefined;
 			// maybe it will be optional
 			for (let i = 0; i < this.variables.length; i++) {
-				result = this.variables[i].FindVariable(fullName);
+				result = this.variables[i].FindVariable(fullName, createIfNotFound);
 				if (result)
 					return result;
 			}
 			//if no one variable found
-			let newObj = new ObjectInfo(fullName[0]);
-			this.variables.push(newObj);
-			result = newObj.FindVariable(fullName);
+			if (createIfNotFound){
+				let newObj = new ObjectInfo(fullName[0], this.source, this.range.Copy());
+				this.variables.push(newObj);
+				result = newObj.FindVariable(fullName, createIfNotFound);
+			}
 			if (!result)
 				throw new ParseError(`can't create variable ${fullName.join('.')} in SourceInfo.FindVariable`);
 			return result;
+		}
+
+		public VariableExists(fullname: string[]): boolean{
+			try{
+				this.FindVariable(fullname, false);
+				return true;
+			}catch(e){
+				return false;
+			}
 		}
 
 		/**
@@ -355,7 +365,7 @@ export namespace bazCode {
 					return result;
 			}
 			//if no one function found
-			let newObj: ObjectInfo = fullName.length === 1 ? new FunctionInfo(fullName[0]) : new ObjectInfo(fullName[0]);
+			let newObj: ObjectInfo = fullName.length === 1 ? new FunctionInfo(fullName[0], this.source) : new ObjectInfo(fullName[0], this.source);
 			this.variables.push(newObj);
 			result = newObj.FindFunction(fullName);
 			if (!result)
@@ -363,20 +373,14 @@ export namespace bazCode {
 			return result.Copy();
 
 		}
-		ClearCircular() {
-			this.source = <any>undefined;
-			let vars = this.variables;
-			for (let i = vars.length - 1; i >= 0; i--) {
-				let elem = vars[i];
-				if (elem.range) {
-					elem.ClearCircular();
-				}
-				else
-					vars.splice(i, 1);
-			}
-			// this.variables.forEach(element => {
-			// 	element.ClearCircular();
-			// });
+
+		NonCircularCopy(): SourceInfo{
+			let result = new SourceInfo(this.name, this.range.Copy());
+			result.source = <any>undefined;
+			this.variables.forEach(element => {
+				result.variables.push(element.NonCircularCopy());
+			});
+			return result;
 		}
 		ClearEmpty() {
 			let vars = this.variables;
@@ -390,6 +394,9 @@ export namespace bazCode {
 			}
 		}
 		variables: Array<ObjectInfo>;
+		version: number;
+
+		fileName: string;
 	}
 
 	//Additional functions
@@ -424,8 +431,25 @@ export namespace bazCode {
 	}
 
 	function MakeObject(name: string, source: SourceInfo, range?: InfoRange): ObjectInfo {
-		let result = new ObjectInfo(name, range);
-		result.source = source;
+		let result = new ObjectInfo(name, source, range);
+		return result;
+	}
+
+	function GetFullInitRange(node: ts.Node): InfoRange{
+		let result = new InfoRange(node.pos, node.end);
+		let rootNode = node;
+		let parent = rootNode.parent;
+		// debugger;
+		while (parent && (parent.kind !== ts.SyntaxKind.SourceFile)){
+			rootNode = parent;
+			parent = rootNode.parent;
+		}
+		if (rootNode !== node){
+			if (Math.abs(rootNode.end - node.end) < 2)
+				result.end = rootNode.end;
+			// if (Math.abs(rootNode.pos - node.pos) < 2)
+			// 	result.pos = rootNode.pos
+		}
 		return result;
 	}
 
@@ -439,15 +463,16 @@ export namespace bazCode {
 			switch (init.kind) {
 				case (ts.SyntaxKind.ObjectLiteralExpression): {
 					let expr = <ts.ObjectLiteralExpression>init;
+					obj.PushState(InfoState.ParseInitialization);
 					for (let i = 0; i < expr.properties.length; i++) {
 						parseNode(expr.properties[i], obj);
 					}
+					obj.PopState();
 					break;
 				}
 				case (ts.SyntaxKind.CallExpression): {
 					let expr = <ts.CallExpression>init;
-					let func = new FunctionInfo('');
-					func.source = obj.source;
+					let func = new FunctionInfo('', obj.source);
 					let parsedFunc = parseNode(expr, func);
 					if (parsedFunc instanceof FunctionInfo)
 						obj.initializer = parsedFunc;
@@ -502,17 +527,18 @@ export namespace bazCode {
 		}
 		if (!info.source)
 			throw new ParseError(`info '${info.name}' doesn't have a source`);
-		let newObj = MakeObject(objName, info.source, { pos: decl.pos, end: decl.end })
+		let newObj = MakeObject(objName, info.source, new InfoRange(decl.pos, decl.end))
+		newObj.initRange = GetFullInitRange(decl);
 		parseInitializer(decl.initializer, newObj);
+		newObj.initialized = true;
 		info.AddNewItem(newObj);
 	}
 
 	function parseCallExpression(expr: ts.CallExpression, info: BaseInfo): FunctionInfo | undefined {
 		let fullCallName = getFullNameOfObjectInfo(expr.expression);
 		let newFunc = info.source.FindFunction(fullCallName);
-		newFunc.range = { pos: expr.pos, end: expr.end };
-		let funcArgs = new ObjectArrayInfo('');
-		funcArgs.source = info.source;
+		newFunc.range = new InfoRange(expr.pos, expr.end);
+		let funcArgs = new ObjectArrayInfo('', info.source);
 		let exprArgs = expr.arguments;
 		if (exprArgs) {
 			for (let i = 0; i < exprArgs.length; i++)
@@ -527,8 +553,8 @@ export namespace bazCode {
 			return undefined;
 		}
 	}
-
 	function parsePropertyAssignment(node: ts.PropertyAssignment, info: BaseInfo) {
+
 		let propName = '';
 		switch (node.name.kind) {
 			case ts.SyntaxKind.Identifier: {
@@ -540,16 +566,17 @@ export namespace bazCode {
 			}
 		}
 		if (propName) {
-			let newProp = new ObjectInfo(propName, { pos: node.pos, end: node.end });
-			newProp.source = info.source;
+			let newProp = new ObjectInfo(propName, info.source, new InfoRange(node.pos, node.end));
+			newProp.initRange = GetFullInitRange(node);
 			parseInitializer(node.initializer, newProp);
+			newProp.initialized = true;
 			info.AddNewItem(newProp);
 		}
 	}
 
-	function MakeValue(value: string | boolean, range: InfoRange): ObjectInfo {
-		let result = new ObjectInfo('', range);
-		result.value = value.toString();
+	function MakeValue(value: string | boolean, range: InfoRange, src: SourceInfo): ObjectInfo {
+		let result = new ObjectInfo('', src, range);
+		result.value = <string>value;
 		return result
 	}
 
@@ -558,11 +585,14 @@ export namespace bazCode {
 		let right = expr.right;
 		let token = expr.operatorToken;
 		let fullPropName = getFullNameOfObjectInfo(left);
-		let prop = info.source.FindVariable(fullPropName);
-		prop.range = { pos: expr.pos, end: expr.end };
+		let prop = info.source.FindVariable(fullPropName, true);
+		prop.range = new InfoRange(expr.pos, expr.end);
 		switch (token.kind) {
 			case ts.SyntaxKind.FirstAssignment: {
+				prop.initRange = GetFullInitRange(expr);
+				prop.PushState(InfoState.NeedInitialization);
 				parseNode(right, prop);
+				prop.PopState();
 				break;
 			}
 			default: {
@@ -580,7 +610,7 @@ export namespace bazCode {
 				info.value = constValue;
 			}
 			else {
-				info.refersTo = info.source.FindVariable(propName);
+				info.refersTo = info.source.FindVariable(propName, true);
 			}
 		}
 	}
@@ -589,27 +619,28 @@ export namespace bazCode {
 		let needParseChilds = false;
 		switch (node.kind) {
 			case ts.SyntaxKind.FalseKeyword: {
-				let newVal = MakeValue(false, { pos: node.pos, end: node.end });
+				let newVal = MakeValue(false, new InfoRange(node.pos, node.end), info.source);
 				info.AddNewItem(newVal);
 				break;
 			}
 			case ts.SyntaxKind.TrueKeyword: {
-				let newVal = MakeValue(true, { pos: node.pos, end: node.end });
+				let newVal = MakeValue(true, new InfoRange(node.pos, node.end), info.source);
 				info.AddNewItem(newVal);
 				break;
 			}
 			case ts.SyntaxKind.StringLiteral:
 			case ts.SyntaxKind.NumericLiteral: {
 				let value = (<ts.NumericLiteral>node).text;
-				let newVal = MakeValue(value, { pos: node.pos, end: node.end });
+				let newVal = MakeValue(value, new InfoRange(node.pos, node.end), info.source);
 				info.AddNewItem(newVal);
 				break;
 			}
 			case ts.SyntaxKind.Identifier: {
 				let name = (<ts.Identifier>node).text;
-				let identifierObject = info.source.FindVariable([name]);
-				let copy = new ObjectInfo('', { pos: node.pos, end: node.end });
-				copy.refersTo = identifierObject
+				let identifierObject = info.source.FindVariable([name], true);
+				let copy = new ObjectInfo('', info.source, new InfoRange(node.pos, node.end));
+				copy.refersTo = identifierObject;
+				copy.initRange = GetFullInitRange(node);
 				info.AddNewItem(copy);
 				break;
 			}
@@ -642,18 +673,53 @@ export namespace bazCode {
 				}
 				break;
 			}
+			case ts.SyntaxKind.ShorthandPropertyAssignment: {
+				let varName = (<ts.ShorthandPropertyAssignment>node).name.text;
+				let newVar = new ObjectInfo(varName, info.source, new InfoRange(node.pos, node.end));
+				info.AddNewItem(newVar);
+				break;
+			}
+			case ts.SyntaxKind.ObjectLiteralExpression: {
+				let stateSetted = false;
+				if (info.state === InfoState.NeedInitialization){
+					info.PushState(InfoState.None);
+					stateSetted = true;
+				}
+				let expr = <ts.ObjectLiteralExpression>node;
+				info.PushState(InfoState.ParseInitialization)
+				for (let i = 0; i < expr.properties.length; i++) {
+					parseNode(expr.properties[i], info);
+				}
+				info.PopState();
+				if (stateSetted)
+					info.PopState();
+				if (info instanceof ObjectInfo){
+					info.initialized = true;
+				}
+				break;
+			}
+			//not parsed now, but for future
+			case ts.SyntaxKind.FunctionExpression:
+			case ts.SyntaxKind.IfStatement: {
+				break;
+			}
+
+			//don't parse them, but parse their childs
 			case ts.SyntaxKind.VariableStatement:
 			case ts.SyntaxKind.VariableDeclarationList:
+			case ts.SyntaxKind.Block:
 			case ts.SyntaxKind.SourceFile: {
 				needParseChilds = true;
 				break;
 			}
+
+			//we don't parse this
 			case ts.SyntaxKind.EndOfFileToken: {
 				break;
 			}
 			default: {
 				// needParseChilds = true;
-				AddMissedNode(`ParseNode: missed kind: ${node.kind}`);
+				AddMissedNode(`ParseNode: missed kind: ${node.kind} at pos ${node.pos}`);
 				break;
 			}
 		}
@@ -670,7 +736,8 @@ export namespace bazCode {
 
 
 	export function parseSource(src: ts.SourceFile, errorlogger: (error: string) => void): SourceInfo {
-		let result = new SourceInfo('', { pos: src.pos, end: src.end });
+		let result = new SourceInfo(src.fileName, new InfoRange(src.pos, src.end));
+		missedNodes = [];
 		try {
 			result = <SourceInfo>parseNode(src, result);
 		}
@@ -679,8 +746,68 @@ export namespace bazCode {
 				errorlogger(e.stack);
 		}
 		if (missedNodes.length > 0)
-			errorlogger(`SourceFile: ${src.fileName}; \n ${missedNodes.join('\n')} \n============================================\n`);
+			errorlogger(`SourceFile: ${src.fileName}:\n\t${missedNodes.join('\n\t')} \n============================================\n`);
 		result.ClearEmpty();
 		return result;
 	}
+
+
+
+	//parsers for in messages
+
+	export class TextChange{
+		constructor(){
+			this.pos = 0,
+			this.end = 0,
+			this.newText = '';
+		}
+		pos: number;
+		end: number;
+		newText: string;
+	}
+
+	class NewComponentMessage{
+		name: string;
+		type: string;
+		layout: bzConsts.Layout;
+		args: string[] | undefined;
+		owner: string;
+	}
+
+	export function MakeNewComponent(msg: any, parsedSource: SourceInfo): TextChange{
+		let result = new TextChange();
+		let newComponentInfo = <NewComponentMessage>msg;
+		let componentOwner = newComponentInfo.owner.split('.');
+		let owner = parsedSource.FindVariable(componentOwner, true);
+		// let start: number;
+		// {
+		// 	let init = owner.initializer;
+		// 	if (init){
+		// 		start = init.initRange.end;
+		// 	}
+		// 	else{
+		// 		start = owner.initRange.end;
+		// 	}
+		// }
+		let start = owner.initRange.end;
+		result.pos = result.end = start;
+		let name = newComponentInfo.name;
+		let i = 1;
+		while (parsedSource.VariableExists([name + i])){
+			i++;
+		}
+		name = name + i;
+		let type = newComponentInfo.type;
+		/** layout */
+		let lo = newComponentInfo.layout;
+		let args = newComponentInfo.args || [];
+		let newText ='';
+		if (bzConsts.IsComponentConstructor(type)){
+			newText = `\nlet ${name} = ${owner.GetFullName().join('.')}.${type}(${args.join(', ')});` +
+					  `\n${name}.SetLayout(${lo.left}, ${lo.top}, ${lo.width}, ${lo.height});`
+		}
+		result.newText = newText;
+		return result;
+	}
+
 }

@@ -67,40 +67,60 @@ function addDeclarationFiles() {
 	}
 }
 
+interface FileSource{
+	fileName: string;
+}
+class Files<T extends FileSource>{
+	SetSource(src: T){
+		this[path.normalize(src.fileName)] = src;
+	}
+	GetSource(fileName: string): T | undefined{
+		let result = this[path.normalize(fileName)];
+		return result;
+	}
+}
+
 let formOpened: boolean = false;
 let currentFormName: string | undefined;
+let currentFileName: string = '';
 let formEditorPath: string = '';
 let formEditorProcess: cp.ChildProcess;
 
 /**constants of typ */
-const MessageType = {
+const OutMessageType = {
 	FormInfo: 'forminfo',
 	UpdateInfo: 'update'
 }
+const InMessageType = {
+	NewComponent: 'newcomponent'
+}
+
 const FormEditorFileName = 'FormEditor.exe';
 
-let sourceFiles: Array<ts.SourceFile> = [];
+const sourceFiles = new Files<ts.SourceFile>();
+let parsedSources = new Files<bazCode.SourceInfo>();
 let curTimeout: NodeJS.Timer;
 let logDir = vscode.extensions.getExtension('BazisSoft.bazis-debug').extensionPath + '\\';
-let logFile = logDir + 'log.out';
 let sessionLogfile = logDir + 'session.out';
 let date = new Date();
-//client for TCP connection to form editor
 
+//TCP variables
 let client = new Net.Socket();
+let inData = Buffer.alloc(0);
+let inMessageState = 'headers';
+let inHeaders = {};
+
 
 // should be able to change in settings
 let parseTimeout = 1500;
 let updateOnEnter: boolean = true;
 let updateOnSemicolon: boolean = true;
-let logging = true;
 let lastSessionLogging = true;
 let loggingDate = true;
-
 let socketPort = 7800;
 
 function CurrentDate(): string {
-	return loggingDate ? `${date.getMonth() + 1}.${date.getDate() + 1} ::` : ''
+	return loggingDate ? `${date.getMonth() + 1}.${date.getDate()} ::` : ''
 }
 
 function SessionLog(msg: string) {
@@ -109,33 +129,29 @@ function SessionLog(msg: string) {
 	}
 }
 
-function logError(error: string): void {
-	if (logging) {
-		fs.appendFileSync(logFile, `${CurrentDate()}${error}\n`);
+function logSessionError(error: string): void {
+	if (lastSessionLogging){
+		SessionLog('error: ' + error);
 	}
 }
 
-function ShowError(error: string): void {
-	if (logging) {
-		vscode.window.showErrorMessage(error);
-	}
-}
+// it isn't used for now
+// function ShowError(error: string): void {
+// 	if (logging) {
+// 		vscode.window.showErrorMessage(error);
+// 	}
+// }
 
 function sendMessage(client: Net.Socket, msg: string) {
-	if (client) {
-		const data = 'Content-Length: ' + Buffer.byteLength(msg, 'utf8') + '\r\n' + msg;
-		//let buf = new Buffer(data, 'utf8');
-		client.write(data);
-		//client.push(data);
+	if (client && !client.destroyed) {
+		const data = 'content-length: ' + Buffer.byteLength(msg, 'utf8') + '\r\n' + msg;
+		client.write(data, 'utf8');
 	}
 }
 
 function RunFormEditor(formInfo?: bazForms.ParsedForm) {
 	if (!formOpened) {
 		if (formEditorPath) {
-			if (lastSessionLogging) {
-				fs.writeFileSync(sessionLogfile, '');
-			}
 			formEditorProcess = cp.spawn(formEditorPath, ['--port', socketPort.toString()]);
 			client.connect(socketPort);
 
@@ -155,9 +171,8 @@ function RunFormEditor(formInfo?: bazForms.ParsedForm) {
 			client.on('error', err => {
 				if (connected) {
 					// since we are connected this error is fatal
-					if (logging)
-						logError('Client error:' + (err.stack || ''));
-					//this._terminated('socket error');
+					if (lastSessionLogging)
+						logSessionError('Client error:' + (err.stack || ''));
 				} else {
 					// we are not yet connected so retry a few times
 					if ((<any>err).code === 'ECONNREFUSED' || (<any>err).code === 'ECONNRESET') {
@@ -167,16 +182,17 @@ function RunFormEditor(formInfo?: bazForms.ParsedForm) {
 								client.connect(socketPort);
 							}, 200);		// retry after 200 ms
 						} else {
-							logError(`Cannot connect to runtime process: timeout after ${timeout}`)
+							logSessionError(`Cannot connect to runtime process: timeout after ${timeout}`)
 						}
 					} else {
-						logError('Cannot connect to runtime process: error = ' + (<any>err).code);
+						logSessionError('Cannot connect to runtime process: error = ' + (<any>err).code);
 					}
 				}
 			});
 
 			client.on("data", (data: Buffer) => {
-				logError('Data: ' + data.toString('utf8'));
+				SessionLog('In Data: ' + data.toString('utf8'));
+				transformInMessage(data);
 				return;
 			})
 
@@ -196,10 +212,28 @@ function RunFormEditor(formInfo?: bazForms.ParsedForm) {
 	}
 }
 
+function StringifyCircular(obj): string {
+	let cache = <any>[];
+	return JSON.stringify(obj, (key, value) => {
+		if ((typeof value === 'object') && (value !== null)) {
+			if (cache.indexOf(value) !== -1) {
+				// Circular reference found, discard key
+				return;
+			}
+			// Store value in our collection
+			cache.push(value);
+		}
+		return value;
+	});
+
+	//JSON.stringify(src)
+}
 
 function updateSource(src: ts.SourceFile) {
-	let parsedSource = bazCode.parseSource(src, logError);
-	let formsInfo = bazForms.MakeForms(parsedSource, logError);
+	SessionLog(`Source: ${StringifyCircular(src)}`);
+	let parsedSource = bazCode.parseSource(src, logSessionError);
+	parsedSources.SetSource(parsedSource);
+	let formsInfo = bazForms.MakeForms(parsedSource, logSessionError);
 	if (currentFormName) {
 		let form: bazForms.ParsedForm | undefined;
 		for (let i = 0; i < formsInfo.length; i++) {
@@ -215,11 +249,98 @@ function updateSource(src: ts.SourceFile) {
 	}
 }
 
+function pushInMessage(msg: string){
+
+	function MakeTextEdit(doc: vscode.TextDocument, change: bazCode.TextChange): vscode.TextEdit{
+		let startPos = doc.positionAt(change.pos);
+		let endPos = doc.positionAt(change.end);
+		let result = new vscode.TextEdit(
+			new vscode.Range(startPos, endPos),
+			change.newText
+		)
+		return result;
+	}
+	console.log(msg);
+	let jsonMsg = JSON.parse(msg);
+	let type = jsonMsg['type'];
+	let fName = jsonMsg['filename'];
+	let parsedSource = parsedSources.GetSource(fName);
+	if (!parsedSource)
+		throw new Error(`cannot find source ${fName} parsed by codeparser`);
+	let message = jsonMsg['message'];
+	let newChange: bazCode.TextChange | undefined;
+	switch (type){
+		case InMessageType.NewComponent:{
+			newChange = bazCode.MakeNewComponent(message, parsedSource);
+			break;
+		}
+	}
+	if (!newChange){
+		logSessionError(`In message cannot be parsed. Message: ${msg}\n`);
+		return;
+	}
+	let doc = vscode.window.activeTextEditor.document;
+	let edit = new vscode.WorkspaceEdit()
+	edit.set(doc.uri, [MakeTextEdit(doc, newChange)])
+	//maybe it will be needed to synchronize data in/out proccess;
+	// let version = jsonMsg['version'];
+	vscode.workspace.applyEdit(edit);
+}
+
+function transformInMessage(data: Buffer) {
+	inData = Buffer.concat([inData, data]);
+
+	while (true) {
+		if (inMessageState === 'headers') {
+			// Not enough data
+			if (!inData.includes('\r\n'))
+				break;
+
+			var bufString = inData.toString('utf8');
+			if ((<any>bufString).startsWith('\r\n')) {
+				inData = inData.slice(2);
+				inMessageState = 'body';
+				continue;
+			}
+
+			// Match:
+			//   Header-name: header-value\r\n
+			var match = bufString.match(/^([^:\s\r\n]+)\s*:\s*([^\s\r\n]+)\r\n/);
+			if (!match){
+				logSessionError('Expected header, but failed to parse it');
+				return;
+			}
+
+			inHeaders[match[1].toLowerCase()] = match[2];
+
+			inData = inData.slice(Buffer.byteLength(match[0], 'utf8'));
+		} else {
+			var len = inHeaders['content-length'];
+			if (len === undefined){
+				logSessionError('Expected content-length');
+				return;
+			}
+
+			len = len | 0;
+			if (Buffer.byteLength(<any>inData, 'utf8') < len)
+				break;
+
+			pushInMessage(inData.slice(0, len).toString('utf8'));
+			inMessageState = 'headers';
+			inData = inData.slice(len);
+			inHeaders = {};
+		}
+	}
+
+}
+
 function updateFormEditor(form: bazForms.ParsedForm) {
 
+	SessionLog(`form: ${JSON.stringify(form)}`);
 	let message = {
-		type: MessageType.FormInfo,
-		info: form
+		type: OutMessageType.FormInfo,
+		info: form,
+		filename: currentFileName
 	}
 	let stringMsg = JSON.stringify(message);
 	sendMessage(client, stringMsg);
@@ -227,20 +348,21 @@ function updateFormEditor(form: bazForms.ParsedForm) {
 }
 
 function onDidChangeTextDocument(ev: vscode.TextDocumentChangeEvent): void {
-	if (!formOpened)
-		return;
+	// if (!formOpened)
+	// 	return;
 	try {
 		if (curTimeout)
 			clearTimeout(curTimeout);
-		let fileName = ev.document.fileName;
+		let fileName = ev.document.fileName//.replace(/\\/g, '\/');
 		let NeedUpdate = false;
-		let src: ts.SourceFile = sourceFiles[fileName];
+		let src = <ts.SourceFile>sourceFiles.GetSource(fileName);
 		if (!src)
 			return;
 		ev.contentChanges.forEach(element => {
+			let startRange = element.range.start;
 			let changeRange: ts.TextChangeRange = {
 				span: {
-					start: ev.document.offsetAt(element.range.start),
+					start: src.getPositionOfLineAndCharacter(startRange.line, startRange.character),
 					length: element.rangeLength
 				},
 				newLength: element.text.length
@@ -255,7 +377,7 @@ function onDidChangeTextDocument(ev: vscode.TextDocumentChangeEvent): void {
 			// 	'---------------------------------------\n' +
 			// 	src.getFullText() + `\n --docVersion = ${ev.document.version}\n`);
 		});
-		sourceFiles[fileName] = src;
+		sourceFiles.SetSource(src);
 		if (NeedUpdate)
 			updateSource(src)
 		else
@@ -287,16 +409,20 @@ function openFormEditor() {
 	if (!formEditorPath)
 		return;
 	try {
+		if (lastSessionLogging) {
+			fs.writeFileSync(sessionLogfile, '');
+		}
 		let curDoc = vscode.window.activeTextEditor.document;
 		let text = curDoc.getText();
-		let fileName = curDoc.fileName;
-		let src: ts.SourceFile = sourceFiles[fileName]
+		let fileName = curDoc.fileName//.replace(/\\/g, '\/');
+		let src = sourceFiles.GetSource(fileName);
 		if (!src) {
-			src = ts.createSourceFile(curDoc.fileName, text, ts.ScriptTarget.ES2016, false);
-			sourceFiles[fileName] = src;
+			src = ts.createSourceFile(fileName, text, ts.ScriptTarget.ES2016, true);
+			sourceFiles.SetSource(src);
 		}
-		let result = bazCode.parseSource(src, logError);
-		let forms = bazForms.MakeForms(result, logError);
+		let result = bazCode.parseSource(src, logSessionError);
+		parsedSources.SetSource(result);
+		let forms = bazForms.MakeForms(result, logSessionError);
 		let formNames: string[] = [];
 		for (let i = 0; i < forms.length; i++) {
 			formNames.push(forms[i].owner + '.' + forms[i].name);
@@ -312,6 +438,7 @@ function openFormEditor() {
 					let formInfo = forms[index];
 					if (formInfo) {
 						currentFormName = value;
+						currentFileName = fileName;
 						RunFormEditor(formInfo);
 					}
 				}
@@ -319,12 +446,12 @@ function openFormEditor() {
 		}
 		else
 			vscode.window.showErrorMessage('There is no any form');
-		if (logging) {
+		if (lastSessionLogging) {
 			try {
-				fs.writeFileSync(logDir + 'src.out', JSON.stringify(src.statements));
 				fs.writeFileSync(logDir + 'forms.out', JSON.stringify(forms));
-				result.ClearCircular();
-				fs.writeFileSync(logDir + 'result.out', JSON.stringify(result));
+				fs.writeFileSync(logDir + 'result.out', JSON.stringify(result.NonCircularCopy()));
+				//TODO: remove circular while stringify
+				//fs.writeFileSync(logDir + 'src.out', JSON.stringify(src.statements));
 			}
 			catch (e) {/*ignore any error*/ }
 		}
@@ -347,14 +474,13 @@ const initialConfigurations = [
 ];
 
 export function activate(context: vscode.ExtensionContext) {
-	vscode.workspace.onDidChangeTextDocument(onDidChangeTextDocument)
+	vscode.workspace.onDidChangeTextDocument(onDidChangeTextDocument);
 	vscode.commands.registerCommand('bazis-debug.addDeclarationFiles', () => {
 		addDeclarationFiles();
 	});
 
 	//read settings
 	let bazConfig = vscode.workspace.getConfiguration('bazis-debug');
-	logging = bazConfig.get('logging', false);
 	lastSessionLogging = bazConfig.get('lastSessionLogging', false);
 
 	formEditorPath = bazConfig.get('formEditorPath', '');

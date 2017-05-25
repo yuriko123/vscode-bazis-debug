@@ -62,7 +62,7 @@ export namespace bazForms {
 		args: Array<ParsedBase>;
 	}
 
-	function AddVariable(variable: ParsedBase, arr: Array<ParsedBase>) {
+	function AddVariable(variable: ParsedBase, arr: Array<ParsedBase>, arrOwner: ParsedObject) {
 		let added = false;
 		arr.forEach((v, i, vars) => {
 			if (!added && (v.name === variable.name)) {
@@ -70,11 +70,16 @@ export namespace bazForms {
 				added = true;
 			}
 		});
-		if (!added)
+		if (!added) {
 			arr.push(variable);
+		}
 	}
 
 	export class ParsedObject extends ParsedBase {
+		constructor(range: Range, name: string = '') {
+			super(range, name);
+			this.kind = ParsedKind.Object;
+		}
 		name: string;
 		/** object properties */
 		props: Array<ParsedBase> = [];
@@ -91,17 +96,20 @@ export namespace bazForms {
 						fullname.splice(0, 1);
 						return prop.FindReference(fullname);
 					}
-					return prop;
+					else
+						return prop;
 				}
 			}
+			// maybe for future
 			// for (let i = 0; i < this.calls.length; i ++){
 			// 	let call = this.calls[i]
 			// 	if (call.name === fullname[0]) {
-			// 		if (fullname.length > 1) {
-			// 			fullname.splice(0, 1);
-			// 			return call.FindReference(fullname);
-			// 		}
-			// 		return call;
+			// 		// if (fullname.length > 1) {
+			// 		// 	fullname.splice(0, 1);
+			// 		// 	call.FindReference(fullname, cb);
+			// 		// }
+			// 		if (cb)
+			// 			cb(call);
 			// 	}
 			// }
 			throw new Error(`FindReference: cannot find name ${fullname.join('.')} in ${this.name}`);
@@ -141,20 +149,20 @@ export namespace bazForms {
 		constructor(range: Range, name: string = '') {
 			super(range, name, bzConsts.Constructors.NewForm);
 			this.kind = ParsedKind.Form;
-			//this.MakeDefaultProps();
+			this.MakeDefaultProps();
 		}
 
 		owner: string = '';
 
 		MakeDefaultProps() {
-			AddVariable(new ParsedComponent(nullRange, 'Properties', ''), this.props);
-			AddVariable(new ParsedValue(nullRange, 'OKButton', 'false'), this.props);
-			AddVariable(new ParsedValue(nullRange, 'OKButtonCaption', 'ОК'), this.props);
-			AddVariable(new ParsedValue(nullRange, 'CancelButton', 'false'), this.props);
-			AddVariable(new ParsedValue(nullRange, 'CancelButtonCaption', 'Отмена'), this.props);
-			AddVariable(new ParsedValue(nullRange, 'MinHeight', '200'), this.props);
-			AddVariable(new ParsedValue(nullRange, 'MinWidth', '200'), this.props);
-			AddVariable(new ParsedValue(nullRange, 'Caption', ''), this.props);
+			AddVariable(new ParsedComponent(nullRange, 'Properties', ''), this.props, this);
+			AddVariable(new ParsedValue(nullRange, 'OKButton', 'false'), this.props, this);
+			AddVariable(new ParsedValue(nullRange, 'OKButtonCaption', 'ОК'), this.props, this);
+			AddVariable(new ParsedValue(nullRange, 'CancelButton', 'false'), this.props, this);
+			AddVariable(new ParsedValue(nullRange, 'CancelButtonCaption', 'Отмена'), this.props, this);
+			AddVariable(new ParsedValue(nullRange, 'MinHeight', '200'), this.props, this);
+			AddVariable(new ParsedValue(nullRange, 'MinWidth', '200'), this.props, this);
+			AddVariable(new ParsedValue(nullRange, 'Caption', ''), this.props, this);
 		}
 
 	}
@@ -203,13 +211,35 @@ export namespace bazForms {
 		if (!result) {
 			throw new Error(`FindReference: cannot find variable '${typeof fullname === 'string' ? fullname : fullname.join('.')}'`);
 		}
-
-		if (names.length > 1) {
-			names.splice(0, 1);
-			return result.FindReference(names);
+		else {
+			if (names.length > 1) {
+				names.splice(0, 1);
+				return result.FindReference(names);
+			}
+			else {
+				return result;
+			}
 		}
-		else
-			return result;
+	}
+
+	function AddVariableToOwner(val: ParsedBase, valOwner: ParsedBase) {
+		//get real object from references
+		while (valOwner instanceof ParsedReference) {
+			valOwner = valOwner.reference;
+		}
+		if (valOwner instanceof ParsedObject) {
+			if (val.kind === ParsedKind.Function) {
+				AddVariable(val, valOwner.calls, valOwner)
+			}
+			// valOwner.calls.push(<ParsedFunction>val);
+			else {
+				AddVariable(val, valOwner.props, valOwner)
+			}
+			// valOwner.props.push(variable);
+		}
+		else {
+			throw new Error(`FillVariable: owner of property ${val.name} has incorrect type: ${(<any>valOwner.constructor).name} `);
+		}
 	}
 
 	function FillVariable(varInfo: bazCode.ObjectInfo, variable: ParsedBase, owner?: ParsedBase) {
@@ -223,31 +253,16 @@ export namespace bazForms {
 			if (!valOwner) {
 				if (varInfo.owner instanceof bazCode.ObjectInfo) {
 					let fullOwnerName = varInfo.owner.GetFullName();
-					valOwner = GetReference(fullOwnerName);
+					let ref = GetReference(fullOwnerName);
+					AddVariableToOwner(variable, ref);
 				}
 				// if (varInfo.owner instanceof ) {
 				// 	let fullOwnerName = varInfo.owner.GetFullName();
 				// 	valOwner = GetReference(fullOwnerName);
 				// }
 			}
-			if (!valOwner) {
-				throw new Error(`FillVariable: owner of variable ${varInfo.GetFullName().join('.')} has incorrect type:
-					${varInfo.owner ? (<any>varInfo.owner.constructor).name : ''}`);
-			}
-			//get real object from references
-			while (valOwner instanceof ParsedReference) {
-				valOwner = valOwner.reference;
-			}
-			if (valOwner instanceof ParsedObject) {
-				if (variable.kind === ParsedKind.Function)
-					AddVariable(variable, valOwner.calls)
-				// valOwner.calls.push(<ParsedFunction>variable);
-				else
-					AddVariable(variable, valOwner.props)
-				// valOwner.props.push(variable);
-			}
 			else {
-				throw new Error(`FillVariable: owner of property ${varInfo.name} has incorrect type: ${(<any>valOwner.constructor).name} `);
+				AddVariableToOwner(variable, valOwner);
 			}
 		}
 	}
@@ -262,7 +277,10 @@ export namespace bazForms {
 				let initArgs = init.args;
 				initArgs.forEach(arg => {
 					let newArg = ParseVar(arg);
-					args.push(newArg);
+					if (newArg)
+						args.push(newArg);
+					else
+						args.push(new ParsedValue(nullRange, '', undefined));
 				});
 			}
 			//if initializer is global
@@ -275,6 +293,10 @@ export namespace bazForms {
 					form.args = args;
 					forms.push(form);
 					return form;
+				}
+				else{
+					result = new ParsedObject(obj.range, obj.name);
+					result.args = args;
 				}
 			}
 			else {
@@ -299,16 +321,28 @@ export namespace bazForms {
 	function ParseFunction(func: bazCode.FunctionInfo, owner?: ParsedBase): ParsedBase {
 		let args: Array<ParsedBase> = [];
 		func.args.forEach(arg => {
-			let newArg = ParseVar(arg);
-			args.push(newArg);
+			let newArg = ParseVar(arg)
+			if (newArg)
+				args.push(newArg);
+			else
+				args.push(new ParsedValue(nullRange, '', undefined));
 		})
 		let result = new ParsedFunction(func.range, func.name, args);
 		return result;
 	}
 
-	function ParseVar(variable: bazCode.ObjectInfo, owner?: ParsedBase): ParsedBase {
+	/**
+	 *
+	 * @param variable ObjectInfo of code parsed variabale
+	 * @param owner owner of new variable
+	 */
+
+	function ParseVar(variable: bazCode.ObjectInfo, owner?: ParsedBase): ParsedBase | undefined {
 		if (!forms)
 			throw new Error('Forms info isn\'t initialized');
+		if (!variable.initialized && variable.kind != bazCode.InfoKind.FunctionInfo){
+			return undefined;
+		}
 		//search for already pushed variable to avoid duplicates
 		// {
 		// 	let existedVar = FindVariable(variable.GetFullName());
@@ -319,7 +353,8 @@ export namespace bazForms {
 		let newVar: ParsedBase;
 		switch (variable.kind) {
 			case bazCode.InfoKind.ObjectInfo: {
-				newVar = ParseObject(variable, owner)//new ParsedObject(variable.range, variable.name);
+				//newVar = new ParsedObject(variable.range, variable.name);
+				newVar = ParseObject(variable, owner);
 				FillVariable(variable, newVar, owner);
 				break;
 			}
@@ -345,9 +380,9 @@ export namespace bazForms {
 				throw new Error(`InfoKind ${variable.kind} doesn't support`);
 			}
 		}
-		variable.props.forEach(prop => {
-			ParseVar(prop, newVar);
-		});
+		// variable.props.forEach(prop => {
+		// 	ParseVar(prop, newVar);
+		// });
 		return newVar;
 	}
 
@@ -366,7 +401,7 @@ export namespace bazForms {
 		catch (e) {
 			errorlogger(e.stack);
 		}
-		// forms = undefined;
+		forms = <any>undefined;
 		return result;
 	}
 
