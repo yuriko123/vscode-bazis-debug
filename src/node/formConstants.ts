@@ -1,6 +1,6 @@
 export namespace bzConsts {
 
-	export let Constructors = {
+	export const Constructors = {
 		NewForm: 'NewForm',
 		NewButton: 'NewButton',
 		NewNumber: 'NewNumber',
@@ -40,6 +40,8 @@ export namespace bzConsts {
 		}
 	}
 
+	export const LayoutFuncName = 'SetLayout'
+
 	export class Layout {
 		left: number;
 		top: number;
@@ -50,7 +52,7 @@ export namespace bzConsts {
 	export function NewDeclaration(name: string, type: string, caption?: string, l?: Layout): string {
 		let result = `let ${name} = ${type}(${caption ? caption : ''});\n`;
 		if (type != Constructors.NewForm && l)
-			result += `${name}. SetLayout(${l.left}, ${l.top}, ${l.width}, ${l.height});\n`;
+			result += `${name}. ${LayoutFuncName}(${l.left}, ${l.top}, ${l.width}, ${l.height});\n`;
 		return result;
 	}
 

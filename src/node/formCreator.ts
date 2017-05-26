@@ -294,7 +294,7 @@ export namespace bazForms {
 					forms.push(form);
 					return form;
 				}
-				else{
+				else {
 					result = new ParsedObject(obj.range, obj.name);
 					result.args = args;
 				}
@@ -307,6 +307,9 @@ export namespace bazForms {
 				}
 				if ((objOwner instanceof ParsedComponent) && bzConsts.IsComponentConstructor(init.name)) {
 					result = new ParsedComponent(obj.range, obj.name, init.name);
+					if (obj.owner) {
+						(<ParsedComponent>result).owner = obj.owner.GetFullName().join('.');
+					}
 					result.args = args;
 					objOwner.components.push(<ParsedComponent>result);
 					return result;
@@ -340,7 +343,7 @@ export namespace bazForms {
 	function ParseVar(variable: bazCode.ObjectInfo, owner?: ParsedBase): ParsedBase | undefined {
 		if (!forms)
 			throw new Error('Forms info isn\'t initialized');
-		if (!variable.initialized && variable.kind != bazCode.InfoKind.FunctionInfo){
+		if (!variable.initialized && variable.kind != bazCode.InfoKind.FunctionInfo) {
 			return undefined;
 		}
 		//search for already pushed variable to avoid duplicates

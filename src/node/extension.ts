@@ -67,14 +67,14 @@ function addDeclarationFiles() {
 	}
 }
 
-interface FileSource{
+interface FileSource {
 	fileName: string;
 }
 class Files<T extends FileSource>{
-	SetSource(src: T){
+	SetSource(src: T) {
 		this[path.normalize(src.fileName)] = src;
 	}
-	GetSource(fileName: string): T | undefined{
+	GetSource(fileName: string): T | undefined {
 		let result = this[path.normalize(fileName)];
 		return result;
 	}
@@ -92,7 +92,8 @@ const OutMessageType = {
 	UpdateInfo: 'update'
 }
 const InMessageType = {
-	NewComponent: 'newcomponent'
+	NewComponent: 'newcomponent',
+	ComponentsChanges: 'componentschanges'
 }
 
 const FormEditorFileName = 'FormEditor.exe';
@@ -100,6 +101,7 @@ const FormEditorFileName = 'FormEditor.exe';
 const sourceFiles = new Files<ts.SourceFile>();
 let parsedSources = new Files<bazCode.SourceInfo>();
 let curTimeout: NodeJS.Timer;
+let NeedUpdate = false;
 let logDir = vscode.extensions.getExtension('BazisSoft.bazis-debug').extensionPath + '\\';
 let sessionLogfile = logDir + 'session.out';
 let date = new Date();
@@ -120,7 +122,7 @@ let loggingDate = true;
 let socketPort = 7800;
 
 function CurrentDate(): string {
-	return loggingDate ? `${date.getMonth() + 1}.${date.getDate()} ::` : ''
+	return loggingDate ? `${('0' + date.getDate()).slice(-2)}.${('0' + (date.getMonth() + 1)).slice(-2)} ::` : ''
 }
 
 function SessionLog(msg: string) {
@@ -130,7 +132,7 @@ function SessionLog(msg: string) {
 }
 
 function logSessionError(error: string): void {
-	if (lastSessionLogging){
+	if (lastSessionLogging) {
 		SessionLog('error: ' + error);
 	}
 }
@@ -249,9 +251,9 @@ function updateSource(src: ts.SourceFile) {
 	}
 }
 
-function pushInMessage(msg: string){
+function pushInMessage(msg: string) {
 
-	function MakeTextEdit(doc: vscode.TextDocument, change: bazCode.TextChange): vscode.TextEdit{
+	function MakeTextEdit(doc: vscode.TextDocument, change: bazCode.TextChange): vscode.TextEdit {
 		let startPos = doc.positionAt(change.pos);
 		let endPos = doc.positionAt(change.end);
 		let result = new vscode.TextEdit(
@@ -268,20 +270,32 @@ function pushInMessage(msg: string){
 	if (!parsedSource)
 		throw new Error(`cannot find source ${fName} parsed by codeparser`);
 	let message = jsonMsg['message'];
-	let newChange: bazCode.TextChange | undefined;
-	switch (type){
-		case InMessageType.NewComponent:{
+	let doc = vscode.window.activeTextEditor.document;
+	let newChanges: vscode.TextEdit[] = [];
+	switch (type) {
+		case InMessageType.NewComponent: {
+			let newChange: bazCode.TextChange | undefined;
 			newChange = bazCode.MakeNewComponent(message, parsedSource);
+			newChanges.push(MakeTextEdit(doc, newChange));
+			break;
+		}
+		case InMessageType.ComponentsChanges: {
+			for (let i = 0; i < message.length; i++) {
+				let newChange = bazCode.ChangeProperty(message[i], parsedSource);
+				newChanges.push(MakeTextEdit(doc, newChange));
+			}
 			break;
 		}
 	}
-	if (!newChange){
-		logSessionError(`In message cannot be parsed. Message: ${msg}\n`);
+	if (newChanges.length === 0) {
+		logSessionError(`In message cannot be parsed. Full message: ${msg}\n`);
 		return;
 	}
-	let doc = vscode.window.activeTextEditor.document;
+	else {
+		NeedUpdate = true;
+	}
 	let edit = new vscode.WorkspaceEdit()
-	edit.set(doc.uri, [MakeTextEdit(doc, newChange)])
+	edit.set(doc.uri, newChanges)
 	//maybe it will be needed to synchronize data in/out proccess;
 	// let version = jsonMsg['version'];
 	vscode.workspace.applyEdit(edit);
@@ -306,7 +320,7 @@ function transformInMessage(data: Buffer) {
 			// Match:
 			//   Header-name: header-value\r\n
 			var match = bufString.match(/^([^:\s\r\n]+)\s*:\s*([^\s\r\n]+)\r\n/);
-			if (!match){
+			if (!match) {
 				logSessionError('Expected header, but failed to parse it');
 				return;
 			}
@@ -316,7 +330,7 @@ function transformInMessage(data: Buffer) {
 			inData = inData.slice(Buffer.byteLength(match[0], 'utf8'));
 		} else {
 			var len = inHeaders['content-length'];
-			if (len === undefined){
+			if (len === undefined) {
 				logSessionError('Expected content-length');
 				return;
 			}
@@ -336,7 +350,6 @@ function transformInMessage(data: Buffer) {
 
 function updateFormEditor(form: bazForms.ParsedForm) {
 
-	SessionLog(`form: ${JSON.stringify(form)}`);
 	let message = {
 		type: OutMessageType.FormInfo,
 		info: form,
@@ -344,7 +357,7 @@ function updateFormEditor(form: bazForms.ParsedForm) {
 	}
 	let stringMsg = JSON.stringify(message);
 	sendMessage(client, stringMsg);
-	SessionLog(stringMsg);
+	SessionLog('OutMessage: ' + stringMsg);
 }
 
 function onDidChangeTextDocument(ev: vscode.TextDocumentChangeEvent): void {
@@ -354,7 +367,6 @@ function onDidChangeTextDocument(ev: vscode.TextDocumentChangeEvent): void {
 		if (curTimeout)
 			clearTimeout(curTimeout);
 		let fileName = ev.document.fileName//.replace(/\\/g, '\/');
-		let NeedUpdate = false;
 		let src = <ts.SourceFile>sourceFiles.GetSource(fileName);
 		if (!src)
 			return;
@@ -371,15 +383,17 @@ function onDidChangeTextDocument(ev: vscode.TextDocumentChangeEvent): void {
 			newText = newText.slice(0, changeRange.span.start) + element.text +
 				newText.slice(changeRange.span.start + changeRange.span.length);
 			src = src.update(newText, changeRange);
-			if ((updateOnEnter && element.text === '\n') || (updateOnSemicolon && element.text === ';'))
+			if ((updateOnEnter && element.text.indexOf('\n') > -1) || (updateOnSemicolon && element.text === ';'))
 				NeedUpdate = true;
 			// fs.appendFileSync('D:\\tmp\\changes.out',
 			// 	'---------------------------------------\n' +
 			// 	src.getFullText() + `\n --docVersion = ${ev.document.version}\n`);
 		});
 		sourceFiles.SetSource(src);
-		if (NeedUpdate)
+		if (NeedUpdate) {
 			updateSource(src)
+			NeedUpdate = false;
+		}
 		else
 			curTimeout = setTimeout(() => {
 				updateSource(src);
