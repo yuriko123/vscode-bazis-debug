@@ -4,9 +4,14 @@ import { bzConsts } from './formConstants';
 export namespace bazCode {
 
 	let missedNodes: string[] = [];
+	let warnings: string[] = [];
 
 	function AddMissedNode(msg: string) {
 		missedNodes.push(msg);
+	}
+
+	function AddWarn(msg: string){
+		warnings.push(msg);
 	}
 
 	export enum InfoState {
@@ -141,6 +146,7 @@ export namespace bazCode {
 		initialized: boolean = false;
 		/**range of full expression, which initializes this object */
 		initRange: InfoRange;
+		valueRange?: InfoRange;
 		props: ObjectInfo[] = [];
 
 
@@ -160,8 +166,12 @@ export namespace bazCode {
 		}
 
 		CopyParamsTo(newInfo: ObjectInfo, circular: boolean) {
-			newInfo.initRange = this.initRange ? this.initRange.Copy() : new InfoRange;
-			newInfo.value = this.value;
+			newInfo.initRange = this.initRange ? this.initRange.Copy() : circular ? new InfoRange() : <any>undefined;
+			if (this.value) {
+				newInfo.value = this.value || <any>undefined;
+				//we are sure if value exists then its range exists too
+				newInfo.valueRange = (<InfoRange>this.valueRange).Copy();
+			}
 			if (circular) {
 				newInfo.owner = this.owner;
 				newInfo.refersTo = this.refersTo;
@@ -178,11 +188,12 @@ export namespace bazCode {
 				this.props.forEach(prop => {
 					newInfo.props.push(prop.NonCircularCopy());
 				})
+				newInfo.state = <any>undefined;
 			}
 		}
 
 		NonCircularCopy(): ObjectInfo {
-			let newRange = this.range ? this.range.Copy() : new InfoRange();
+			let newRange = this.range ? this.range.Copy() : <any>undefined;
 			let result = new ObjectInfo(this.name, <any>undefined, newRange, this.initialized);
 			this.CopyParamsTo(result, false);
 			return result;
@@ -256,8 +267,10 @@ export namespace bazCode {
 			if (!(item instanceof ObjectInfo))
 				throw new ParseError('item is not a variable');
 			if (this.state === InfoState.NeedInitialization) {
-				if (item.kind === InfoKind.ValueInfo)
+				if (item.kind === InfoKind.ValueInfo){
 					this.value = item.value;
+					this.valueRange = item.valueRange;
+				}
 				else
 					this.initializer = item;
 				this.initialized = true;
@@ -300,6 +313,8 @@ export namespace bazCode {
 			this.args.forEach(arg => {
 				result.args.push(arg.NonCircularCopy());
 			});
+			if (result.args.length === 0)
+				result.args = <any>undefined;
 			return result;
 		}
 		kind: InfoKind = InfoKind.FunctionInfo;
@@ -515,16 +530,19 @@ export namespace bazCode {
 				}
 				case ts.SyntaxKind.FalseKeyword: {
 					obj.value = false.toString();
+					obj.valueRange = new InfoRange(init.pos, init.end);
 					break;
 				}
 				case ts.SyntaxKind.TrueKeyword: {
 					obj.value = true.toString();
+					obj.valueRange = new InfoRange(init.pos, init.end);
 					break;
 				}
 				case ts.SyntaxKind.NumericLiteral:
 				case ts.SyntaxKind.StringLiteral: {
 					let value = (<ts.StringLiteral>init).text;
 					obj.value = value;
+					obj.valueRange = new InfoRange(init.pos, init.end);
 					break
 				}
 				default: {
@@ -605,6 +623,7 @@ export namespace bazCode {
 	function MakeValue(value: string | boolean, range: InfoRange, src: SourceInfo): ObjectInfo {
 		let result = new ObjectInfo('', src, range);
 		result.value = <string>value;
+		result.valueRange = range;
 		return result
 	}
 
@@ -635,11 +654,16 @@ export namespace bazCode {
 			let propName = getFullNameOfObjectInfo(expr);
 			let constValue = bzConsts.GetConstantValue(propName);
 			if (constValue !== undefined) {
-				info.value = constValue;
+				//toString called here because zero value will be transfomed into empty string
+				info.value = constValue.toString();
+				info.valueRange = new InfoRange(expr.pos, expr.end);
 			}
 			else {
 				info.refersTo = info.source.FindVariable(propName, true);
 			}
+		}
+		else{
+			AddWarn(`parsePropertyAccessExpression: info isn't Object info in '${expr.getFullText()}'`);
 		}
 	}
 
@@ -776,6 +800,8 @@ export namespace bazCode {
 		}
 		if (missedNodes.length > 0)
 			errorlogger(`SourceFile: ${src.fileName}:\n\t${missedNodes.join('\n\t')} \n============================================\n`);
+		if (warnings.length > 0)
+			errorlogger(`SourceFile: ${src.fileName}: Warnings:\n\t${warnings.join('\n\t')} \n============================================\n`);
 		result.ClearEmpty();
 		return result;
 	}
@@ -862,29 +888,43 @@ export namespace bazCode {
 		let newValue = changeInfo.value;
 		let comp = parsedSource.FindVariable(fullCompName.split('.'), false);
 		/**index of layout's property */
-		let lIndex = GetLayoutIndex(propName);
+		let lIndex = -1;
+		if (comp.initializer && bzConsts.IsComponentConstructor(comp.initializer.name))
+			lIndex = GetLayoutIndex(propName);
 		if (lIndex === -1) {
 			let prop = comp.FindVariable([propName], false);
 			if (prop) {
-				if (prop.initRange) {
-					result.pos = prop.initRange.pos;
-					result.end = prop.initRange.end;
+				let resultExists = false;
+				if (!(prop instanceof FunctionInfo)){
+					if (prop.valueRange){
+						result.pos = prop.valueRange.pos;
+						result.end = prop.valueRange.end;
+						result.newText = ' ' + newValue;
+						resultExists = true;
+					}
 				}
-				else if (prop.range) {
-					result.pos = prop.range.pos;
-					result.end = prop.range.end;
-				}
-				else {
-					result.pos = result.end = comp.initRange.end;
+				if (! resultExists){
+					if (prop.initRange) {
+						result.pos = prop.initRange.pos;
+						result.end = prop.initRange.end;
+					}
+					else if (prop.range) {
+						result.pos = prop.range.pos;
+						result.end = prop.range.end;
+					}
+					else {
+						result.pos = result.end = comp.initRange.end;
+					}
+					if (prop instanceof FunctionInfo) {
+						result.newText = `\n${fullCompName}.${propName}(${newValue});`
+					}
+					else {
+						result.newText = `\n${fullCompName}.${propName} = ${newValue};`
+					}
 				}
 			}
 			else {
 				result.pos = result.end = comp.initRange.end;
-			}
-			if (prop instanceof FunctionInfo) {
-				result.newText = `\n${fullCompName}.${propName}(${newValue});`
-			}
-			else {
 				result.newText = `\n${fullCompName}.${propName} = ${newValue};`
 			}
 		}

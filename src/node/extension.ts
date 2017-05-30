@@ -162,7 +162,7 @@ function RunFormEditor(formInfo?: bazForms.ParsedForm) {
 			client.on('connect', err => {
 				connected = true;
 				if (formInfo) {
-					updateFormEditor(formInfo);
+					ShowFormEditor(formInfo);
 				}
 				//this._initialize(response);
 			});
@@ -210,7 +210,7 @@ function RunFormEditor(formInfo?: bazForms.ParsedForm) {
 		}
 	}
 	else if (formInfo) {
-		updateFormEditor(formInfo);
+		ShowFormEditor(formInfo);
 	}
 }
 
@@ -232,21 +232,43 @@ function StringifyCircular(obj): string {
 }
 
 function updateSource(src: ts.SourceFile) {
-	SessionLog(`Source: ${StringifyCircular(src)}`);
+	SessionLog(`Source: ${StringifyCircular(src.statements)}`);
 	let parsedSource = bazCode.parseSource(src, logSessionError);
+	let oldSource = parsedSources.GetSource(src.fileName);
 	parsedSources.SetSource(parsedSource);
-	let formsInfo = bazForms.MakeForms(parsedSource, logSessionError);
-	if (currentFormName) {
-		let form: bazForms.ParsedForm | undefined;
-		for (let i = 0; i < formsInfo.length; i++) {
-			let info = formsInfo[i];
-			if (info.owner + '.' + info.name === currentFormName) {
-				form = info;
-				break;
+	if (oldSource) {
+		let formsInfo = bazForms.MakeForms(oldSource, logSessionError);
+		if (currentFormName) {
+			let form: bazForms.ParsedForm | undefined;
+			for (let i = 0; i < formsInfo.length; i++) {
+				let info = formsInfo[i];
+				if (info.owner + '.' + info.name === currentFormName) {
+					form = info;
+					break;
+				}
+			}
+			if (form) {
+				let updates = bazForms.MakeFormUpdates(form, parsedSource, logSessionError);
+				if (updates)
+					UpdateFormEditor(updates);
 			}
 		}
-		if (form) {
-			updateFormEditor(form);
+	}
+	else {
+		let formsInfo = bazForms.MakeForms(parsedSource, logSessionError);
+		parsedSources.SetSource(parsedSource);
+		if (currentFormName) {
+			let form: bazForms.ParsedForm | undefined;
+			for (let i = 0; i < formsInfo.length; i++) {
+				let info = formsInfo[i];
+				if (info.owner + '.' + info.name === currentFormName) {
+					form = info;
+					break;
+				}
+			}
+			if (form) {
+				ShowFormEditor(form);
+			}
 		}
 	}
 }
@@ -262,7 +284,6 @@ function pushInMessage(msg: string) {
 		)
 		return result;
 	}
-	console.log(msg);
 	let jsonMsg = JSON.parse(msg);
 	let type = jsonMsg['type'];
 	let fName = jsonMsg['filename'];
@@ -348,7 +369,7 @@ function transformInMessage(data: Buffer) {
 
 }
 
-function updateFormEditor(form: bazForms.ParsedForm) {
+function ShowFormEditor(form: bazForms.ParsedForm) {
 
 	let message = {
 		type: OutMessageType.FormInfo,
@@ -358,6 +379,18 @@ function updateFormEditor(form: bazForms.ParsedForm) {
 	let stringMsg = JSON.stringify(message);
 	sendMessage(client, stringMsg);
 	SessionLog('OutMessage: ' + stringMsg);
+}
+
+function UpdateFormEditor(newInfo: bazForms.ComponentChanges) {
+	let message = {
+		type: OutMessageType.UpdateInfo,
+		info: newInfo,
+		filename: currentFileName
+	};
+	let stringMsg = JSON.stringify(message);
+	sendMessage(client, stringMsg);
+	SessionLog('OutMessage: ' + stringMsg);
+
 }
 
 function onDidChangeTextDocument(ev: vscode.TextDocumentChangeEvent): void {
@@ -464,8 +497,7 @@ function openFormEditor() {
 			try {
 				fs.writeFileSync(logDir + 'forms.out', JSON.stringify(forms));
 				fs.writeFileSync(logDir + 'result.out', JSON.stringify(result.NonCircularCopy()));
-				//TODO: remove circular while stringify
-				//fs.writeFileSync(logDir + 'src.out', JSON.stringify(src.statements));
+				fs.writeFileSync(logDir + 'src.out', StringifyCircular(src.statements));
 			}
 			catch (e) {/*ignore any error*/ }
 		}
