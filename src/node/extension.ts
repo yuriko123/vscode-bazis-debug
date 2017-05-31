@@ -248,9 +248,24 @@ function updateSource(src: ts.SourceFile) {
 				}
 			}
 			if (form) {
-				let updates = bazForms.MakeFormUpdates(form, parsedSource, logSessionError);
-				if (updates)
-					UpdateFormEditor(updates);
+				//old code
+				// let updates = bazForms.MakeFormUpdates(form, parsedSource, logSessionError);
+				// if (updates)
+				// 	UpdateFormEditor(updates);
+				let newForms = bazForms.MakeForms(bazCode.parseSource(src, logSessionError), logSessionError);
+				let newForm: bazForms.ParsedForm | undefined;
+				for (let i = 0; i < newForms.length; i++) {
+					let info = newForms[i];
+					if (info.owner + '.' + info.name === currentFormName) {
+						newForm = info;
+						break;
+					}
+				}
+				if (newForm){
+					let updates = bazForms.CompareForms(form, newForm, logSessionError);
+					if (updates)
+						UpdateFormEditor(updates);
+				}
 			}
 		}
 	}
@@ -381,7 +396,7 @@ function ShowFormEditor(form: bazForms.ParsedForm) {
 	SessionLog('OutMessage: ' + stringMsg);
 }
 
-function UpdateFormEditor(newInfo: bazForms.ComponentChanges) {
+function UpdateFormEditor(newInfo/*: bazForms.ComponentChanges*/) {
 	let message = {
 		type: OutMessageType.UpdateInfo,
 		info: newInfo,
