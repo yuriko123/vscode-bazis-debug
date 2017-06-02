@@ -1,6 +1,7 @@
 import { bazCode } from './CodeParser';
 import { bzConsts } from './formConstants';
 
+let InfoKind = bazCode.InfoKind;
 
 export namespace bazForms {
 	enum ParsedKind {
@@ -14,836 +15,437 @@ export namespace bazForms {
 		ValueArray = 7
 	}
 
-	export class Range {
-		constructor(pos?: number, end?: number) {
-			this.pos = pos || 0;
-			this.end = end || 0;
-		}
-		pos: number;
-		end: number;
-		IsEmpty(): boolean {
-			return this.pos === -1 && this.end === -1;
-		}
+	enum ChangeState {
+		None = 0,
+		Deleted = 1,
+		Modified = 2,
+		Created = 3
 	}
 
-	let nullRange = (): Range => { return new Range(-1, -1) };
-
-	export class ParsedBase {
+	class ParsedBase {
+		constructor(name: string | undefined, kind?: ParsedKind, state?: ChangeState) {
+			if (name) {
+				this.name = name
+			}
+			this.kind = kind || ParsedKind.Unknown;
+			this.state = state || ChangeState.None;
+		}
+		kind: ParsedKind;
+		state: ChangeState;
 		name?: string;
-		range: Range;
-		kind: ParsedKind = ParsedKind.Unknown;
-		constructor(range: Range, name: string = '') {
-			this.name = name;
-			this.range = range;
+		// variable's owner name (e.g. ['Window'] for 'Window.Button1');
+		owner?: string[];
+		PushChange(change: ParsedBase) {
+			throw new Error(`PushChange: Can't push change ${change.name} in ${typeof this}`);
 		}
-		FindReference(fullname: string[]): ParsedBase {
-			throw new Error(`FindReference: call in ${(<any>this.constructor).name}, tried to find ${fullname.join('.')} in ${this.name}`);
+		/**set state to modified if it wasn't */
+		Modify() {
+			if (!this.Modified())
+				this.state = ChangeState.Modified;
+		}
+		/** returns true if object was modified, created or deleted */
+		Modified(): boolean {
+			return this.state !== ChangeState.None;
+		}
+		GetFullName(): string[] {
+			let ownername = this.owner || [];
+			return ownername.concat([this.name || '']);
 		}
 	}
 
-	export class ParsedReference extends ParsedBase {
-		constructor(name: string, ref: ParsedBase) {
-			super(nullRange(), name);
-			this.reference = ref;
-			this.kind = ParsedKind.Reference;
+	class ParsedFunction extends ParsedBase {
+		constructor(name: string | undefined, state?: ChangeState) {
+			super(name, ParsedKind.Function, state);
 		}
-		reference: ParsedBase;
+		args: Array<ParsedBase> = [];
+		PushArg(arg: ParsedBase) {
+			this.args.push(arg);
+		}
+		PushChange(change: ParsedBase) {
+			if (change.Modified() && !this.Modified()) {
+				this.state = ChangeState.Modified;
+			}
+			this.args.push(change);
+		}
 	}
 
-	export class ParsedValue extends ParsedBase {
-		constructor(range: Range, name: string = '', value?: string) {
-			super(range, name);
-			this.value = value || '';
-			this.kind = ParsedKind.Value;
+	class ParsedValue extends ParsedBase {
+		constructor(name: string | undefined, value?: string, state?: ChangeState) {
+			super(name, ParsedKind.Value, state);
+			if (value)
+				this.value = value;
 		}
 		value: string;
 	}
 
-	export class ParsedFunction extends ParsedBase {
-		constructor(range: Range, name: string = '', args: Array<ParsedBase>) {
-			super(range, name);
-			this.args = args;
-			this.kind = ParsedKind.Function
+	class ParsedReference extends ParsedBase{
+		constructor(name: string | undefined, state?: ChangeState){
+			super(name, ParsedKind.Reference, state);
 		}
-		/**Argument can be value or function */
-		args: Array<ParsedBase>;
+		ref?: string[];
 	}
 
-	function AddVariable(variable: ParsedBase, arr: Array<ParsedBase>, arrOwner: ParsedObject) {
-		let added = false;
-		arr.forEach((v, i, vars) => {
-			if (!added && (v.name === variable.name)) {
-				vars[i] = variable;
-				added = true;
+	class ParsedObject extends ParsedBase {
+		constructor(name: string | undefined, state?: ChangeState) {
+			super(name, ParsedKind.Object, state);
+		}
+		/**set state to modified if it wasn't */
+		Modify() {
+			if (!this.Modified())
+				this.state = ChangeState.Modified;
+			// if (this.owner)
+			// 	this.owner.Modify();
+		}
+		// props: Array<ParsedBase> = [];
+		// calls: Array<ParsedFunction> = [];
+
+		PushChange(change: ParsedBase) {
+			if (change.Modified() && this.state === ChangeState.None) {
+				this.state = ChangeState.Modified;
 			}
-		});
-		if (!added) {
-			arr.push(variable);
-		}
-	}
-
-	export class ParsedObject extends ParsedBase {
-		constructor(range: Range, name: string = '') {
-			super(range, name);
-			this.kind = ParsedKind.Object;
-		}
-		name: string;
-		/** object properties */
-		props: Array<ParsedBase> = [];
-		/**object calls */
-		calls: Array<ParsedFunction> = [];
-		/** Initialization arguments */
-		args: Array<ParsedBase> = [];
-
-		FindReference(fullname: string[]): ParsedBase {
-			for (let i = 0; i < this.props.length; i++) {
-				let prop = this.props[i]
-				if (prop.name === fullname[0]) {
-					if (fullname.length > 1) {
-						fullname.splice(0, 1);
-						return prop.FindReference(fullname);
-					}
-					else
-						return prop;
+			//maybe it won't need
+			// if (change.Modified())
+			// 	this.Modify();
+			switch (change.kind) {
+				// case ParsedKind.Value:
+				// case ParsedKind.Object: {
+				// 	this.props.push(change);
+				// 	break;
+				// }
+				// case ParsedKind.Function: {
+				// 	this.calls.push(<ParsedFunction>change);
+				// 	break;
+				// }
+				// case ParsedKind.FormComponent: {
+				// 	//it should work only for 'Form.Properties' value
+				// 	if (this.owner && this.owner.kind === ParsedKind.Form) {
+				// 		this.owner.PushChange(<ParsedComponent>change);
+				// 		break;
+				// 	}
+				// }
+				default: {
+					throw new Error(`PushChange: cannot push change with kind ${change.kind} into ${typeof this}`);
 				}
 			}
-			// maybe for future
-			for (let i = 0; i < this.calls.length; i++) {
-				let call = this.calls[i]
-				if (call.name === fullname[0]) {
-					if (fullname.length > 1) {
-						throw new Error('FindReference: cannot call FindReference in function object');
-						//fullname.splice(0, 1);
-						//call.FindReference(fullname, cb);
-					}
-					else
-						return call;
-				}
-			}
-			throw new Error(`FindReference: cannot find name ${fullname.join('.')} in ${this.name}`);
 		}
 	}
 
 	export class ParsedComponent extends ParsedObject {
-		/**
-		 *
-		 * @param range initialization Range
-		 * @param name name of variable
-		 * @param type type of component
-		 */
-		constructor(range: Range, name: string = '', type: string) {
-			super(range, name)
-			this.type = type;
+		constructor(name: string | undefined, state?: ChangeState) {
+			super(name, state);
 			this.kind = ParsedKind.FormComponent;
-			this.MakeDefaultProps();
 		}
-		/** Type of component (equals to it's constructor function) */
-		type: string = '';
-		/**
-		 * array of components, created by this
-		 */
-		components: Array<ParsedComponent> = [];
-		/**Owner's name */
-		owner: string;
-
-		MakeDefaultProps() {
-			let dropDown = new ParsedObject(nullRange(), 'DropDownMenu');
-			// dropDown.kind = ParsedKind.FormComponent;
-			this.props.push(dropDown);
-		}
-
-		FindComponent(fullname: string[]): ParsedComponent | undefined {
-			for (let i = 0; i < this.components.length; i++) {
-				let comp = this.components[i]
-				if (comp.name === fullname[0]) {
-					if (fullname.length > 1) {
-						fullname.splice(0, 1);
-						return comp.FindComponent(fullname);
-					}
-					else
-						return comp;
+		// components: Array<ParsedComponent> = [];
+		//constructor of object
+		type: string;
+		//arguments of constructor
+		args: Array<ParsedValue>;
+		/** component owner's name */
+		compOwner?: string[];
+		PushChange(change: ParsedBase) {
+			if (change.Modified() && this.state === ChangeState.None) {
+				this.state = ChangeState.Modified;
+			}
+			switch (change.kind) {
+				// case ParsedKind.Value:
+				// case ParsedKind.Object: {
+				// 	this.props.push(change);
+				// 	break;
+				// }
+				// case ParsedKind.Function: {
+				// 	this.calls.push(<ParsedFunction>change);
+				// 	break;
+				// }
+				// case ParsedKind.FormComponent: {
+				// 	this.components.push(<ParsedComponent>change);
+				// 	break;
+				// }
+				default: {
+					throw new Error(`PushChange: cannot push change with kind ${change.kind} into ${typeof this}`);
 				}
 			}
-			return undefined;
 		}
 	}
 
 	export class ParsedForm extends ParsedComponent {
-		constructor(range: Range, name: string = '') {
-			super(range, name, bzConsts.Constructors.NewForm);
+		constructor(name: string | undefined, state?: ChangeState) {
+			super(name, state);
 			this.kind = ParsedKind.Form;
-			this.MakeDefaultProps();
 		}
-
-		owner: string = '';
-
-		MakeDefaultProps() {
-			AddVariable(new ParsedComponent(nullRange(), 'Properties', ''), this.props, this);
-			AddVariable(new ParsedValue(nullRange(), 'OKButton', 'false'), this.props, this);
-			AddVariable(new ParsedValue(nullRange(), 'OKButtonCaption', 'ОК'), this.props, this);
-			AddVariable(new ParsedValue(nullRange(), 'CancelButton', 'false'), this.props, this);
-			AddVariable(new ParsedValue(nullRange(), 'CancelButtonCaption', 'Отмена'), this.props, this);
-			AddVariable(new ParsedValue(nullRange(), 'MinHeight', '200'), this.props, this);
-			AddVariable(new ParsedValue(nullRange(), 'MinWidth', '200'), this.props, this);
-			AddVariable(new ParsedValue(nullRange(), 'Caption', ''), this.props, this);
-		}
-
 	}
 
-	export class FormsInfo extends Array<ParsedForm>{
-		values: Array<ParsedBase> = [];
-		references: Array<ParsedReference> = [];
-	}
-
-	/**
-	 * Get variable by fullname. Throws an error if variable doesn't exist
-	 * @param fullname full name of variable
-	 */
-	function GetReference(fullname: string | string[]): ParsedBase {
-		//it should be never
-		if (!forms)
-			throw new Error('Forms Array isn\'t initialized');
-		let result: ParsedBase | undefined;
-		let names: string[] = typeof fullname === 'string' ? (<string>fullname).split('.') : fullname;
-		if (names.length === 0)
-			throw new Error(`FindReference: fullname cannot be empty`);
-		for (let i = 0; i < forms.length; i++) {
-			let form = forms[i];
-			if (form.name === names[0]) {
-				result = form;
-				break;
-			}
-		};
-		if (!result) {
-			for (let i = 0; i < forms.values.length; i++) {
-				let val = forms.values[i];
-				if (val.name === names[0]) {
+	export class Forms extends ParsedBase {
+		variables: Array<ParsedBase> = [];
+		PushChange(change: ParsedBase) {
+			this.variables.push(change);
+			// switch (change.kind) {
+			// 	case ParsedKind.Value:
+			// 	case ParsedKind.Object:
+			// 	case ParsedKind.Function: {
+			// 		this.variables.push(change);
+			// 		break;
+			// 	}
+			// 	case ParsedKind.Form: {
+			// 		this.variables.push(change);
+			// 		break;
+			// 	}
+			// 	default: {
+			// 		throw new Error(`PushChange: cannot push change with kind ${change.kind} into ${typeof this}`);
+			// 	}
+			// }
+		}
+		FindOwner(fullname: string[]): ParsedBase | undefined {
+			let result: ParsedBase | undefined;
+			this.variables.forEach(val => {
+				if (val.GetFullName() === fullname)
 					result = val;
-					break;
-				}
-			};
-			if (!result)
-				for (let i = 0; i < forms.references.length; i++) {
-					let ref = forms.references[i];
-					if (ref.name === names[0]) {
-						result = ref.reference;
-						break
-					}
-				};
-		}
-		if (!result) {
-			throw new Error(`FindReference: cannot find variable '${typeof fullname === 'string' ? fullname : fullname.join('.')}'`);
-		}
-		else {
-			if (names.length > 1) {
-				names.splice(0, 1);
-				return result.FindReference(names);
-			}
-			else {
-				return result;
-			}
-		}
-	}
-
-	function AddVariableToOwner(val: ParsedBase, valOwner: ParsedBase) {
-		//get real object from references
-		while (valOwner instanceof ParsedReference) {
-			valOwner = valOwner.reference;
-		}
-		if (valOwner instanceof ParsedObject) {
-			if (val.kind === ParsedKind.Function) {
-				AddVariable(val, valOwner.calls, valOwner)
-			}
-			// valOwner.calls.push(<ParsedFunction>val);
-			else {
-				AddVariable(val, valOwner.props, valOwner)
-			}
-			// valOwner.props.push(variable);
-		}
-		else {
-			throw new Error(`FillVariable: owner of property ${val.name} has incorrect type: ${(<any>valOwner.constructor).name} `);
-		}
-	}
-
-	function FillVariable(varInfo: bazCode.ObjectInfo, variable: ParsedBase, owner?: ParsedBase) {
-		if (!variable.name)
-			return;
-		if (!varInfo.owner && !owner) {
-			forms.values.push(variable);
-		}
-		else {
-			let valOwner = owner;
-			if (!valOwner) {
-				if (varInfo.owner instanceof bazCode.ObjectInfo) {
-					let fullOwnerName = varInfo.owner.GetFullName();
-					let ref = GetReference(fullOwnerName);
-					AddVariableToOwner(variable, ref);
-				}
-				// if (varInfo.owner instanceof ) {
-				// 	let fullOwnerName = varInfo.owner.GetFullName();
-				// 	valOwner = GetReference(fullOwnerName);
-				// }
-			}
-			else {
-				AddVariableToOwner(variable, valOwner);
-			}
-		}
-	}
-
-	function ParseObject(obj: bazCode.ObjectInfo, owner?: ParsedBase): ParsedBase {
-		let result: ParsedObject;
-		//if object was created by calling a function
-		let args: Array<ParsedBase> = [];
-		if (obj.initializer) {
-			let init = obj.initializer;
-			if (init instanceof bazCode.FunctionInfo) {
-				let initArgs = init.args;
-				initArgs.forEach(arg => {
-					let newArg = ParseVar(arg);
-					if (newArg)
-						args.push(newArg);
-					else
-						args.push(new ParsedValue(nullRange(), '', undefined));
-				});
-			}
-			//if initializer is global
-			if (!init.owner) {
-				if (init.name === bzConsts.Constructors.NewForm) {
-					let form = new ParsedForm(obj.range, obj.name);
-					if (obj.owner) {
-						form.owner = obj.owner.GetFullName().join('.')
-					}
-					form.args = args;
-					forms.push(form);
-					return form;
-				}
-				else {
-					result = new ParsedObject(obj.range, obj.name);
-					result.args = args;
-				}
-			}
-			else {
-				let initOwner = init.owner;
-				let objOwner = GetReference(initOwner.GetFullName());
-				if (objOwner.kind === ParsedKind.Reference) {
-					objOwner = (<ParsedReference>objOwner).reference;
-				}
-				if ((objOwner instanceof ParsedComponent) && bzConsts.IsComponentConstructor(init.name)) {
-					result = new ParsedComponent(obj.range, obj.name, init.name);
-					if (obj.owner) {
-						(<ParsedComponent>result).owner = obj.owner.GetFullName().join('.');
-					}
-					result.args = args;
-					objOwner.components.push(<ParsedComponent>result);
-					return result;
-				}
-			}
-		}
-		result = new ParsedObject(obj.range, obj.name)
-		result.args = args;
-		return result;
-	}
-
-	function ParseFunction(func: bazCode.FunctionInfo, owner?: ParsedBase): ParsedBase {
-		let args: Array<ParsedBase> = [];
-		func.args.forEach(arg => {
-			let newArg = ParseVar(arg)
-			if (newArg)
-				args.push(newArg);
-			else
-				args.push(new ParsedValue(nullRange(), '', undefined));
-		})
-		let result = new ParsedFunction(func.range, func.name, args);
-		return result;
-	}
-
-	/**
-	 *
-	 * @param variable ObjectInfo of code parsed variabale
-	 * @param owner owner of new variable
-	 */
-
-	function ParseVar(variable: bazCode.ObjectInfo, owner?: ParsedBase): ParsedBase | undefined {
-		if (!forms)
-			throw new Error('Forms info isn\'t initialized');
-		if (!variable.initialized && variable.kind != bazCode.InfoKind.FunctionInfo) {
-			return undefined;
-		}
-		//search for already pushed variable to avoid duplicates
-		// {
-		// 	let existedVar = FindVariable(variable.GetFullName());
-		// 	if (existedVar)
-		// 		return existedVar;
-		// }
-		//make new variable
-		let newVar: ParsedBase;
-		switch (variable.kind) {
-			case bazCode.InfoKind.ObjectInfo: {
-				//newVar = new ParsedObject(variable.range, variable.name);
-				newVar = ParseObject(variable, owner);
-				FillVariable(variable, newVar, owner);
-				break;
-			}
-			case bazCode.InfoKind.FunctionInfo: {
-				newVar = ParseFunction(<bazCode.FunctionInfo>variable, owner);
-				FillVariable(variable, newVar, owner);
-				break;
-			}
-			case bazCode.InfoKind.ValueInfo: {
-				newVar = new ParsedValue(variable.range, variable.name, variable.value); //ParseObject(variable, owner);
-				FillVariable(variable, newVar, owner);
-				// ParseValue(variable);
-				break;
-			}
-			case bazCode.InfoKind.ReferenceInfo: {
-				let refName = variable.refersTo.GetFullName();
-				let ref = GetReference(refName);
-				newVar = new ParsedReference(variable.name, ref);
-				FillVariable(variable, newVar, owner);
-				break;
-			}
-			default: {
-				throw new Error(`InfoKind ${variable.kind} doesn't support`);
-			}
-		}
-		// variable.props.forEach(prop => {
-		// 	ParseVar(prop, newVar);
-		// });
-		return newVar;
-	}
-
-	/**
-	 * returns array of forms, available in given source
-	 * @param parsedSource Source, parsed by CodeParser and WITHOUT clearing circular
-	 */
-	export function MakeForms(parsedSource: bazCode.SourceInfo, errorlogger: (error: string) => void): FormsInfo {
-		let result = new FormsInfo();
-		forms = result;
-		try {
-			parsedSource.variables.forEach((variable) => {
-				ParseVar(variable);
 			})
-		}
-		catch (e) {
-			errorlogger(e.stack);
-		}
-		forms = <any>undefined;
-		return result;
-	}
-	let forms: FormsInfo;
-
-	// export class ComponentChanges {
-	// 	constructor(name: string) {
-	// 		this.name = name;
-	// 	}
-	// 	name: string;
-	// 	props: Array<ParsedBase> = [];
-	// 	calls: Array<ParsedBase> = [];
-	// 	components: Array<ComponentChanges> = [];
-	// 	IsEmpty(): boolean {
-	// 		return this.components.length === 0 && this.props.length === 0 && this.calls.length === 0;
-	// 	}
-	// }
-	// function VariablesEqual(oldVar: ParsedBase, newVar: ParsedBase) {
-	// 	if (oldVar.kind === newVar.kind) {
-	// 		switch (oldVar.kind) {
-	// 			case ParsedKind.Value: {
-	// 				return (ValuesEqual((<ParsedValue>oldVar), (<ParsedValue>newVar)));
-	// 			};
-	// 			case ParsedKind.Function: {
-	// 				return FunctionsEqual(<ParsedFunction>oldVar, <ParsedFunction>newVar);
-	// 			}
-	// 			default:
-	// 				return true;
-	// 		}
-	// 	}
-	// 	return false;
-	// }
-
-
-	// function ValuesEqual(oldValue: ParsedValue, newVal: ParsedValue) {
-	// 	return (oldValue.value === newVal.value);
-	// }
-
-	// function FunctionsEqual(oldFunc: ParsedFunction, newFunc: ParsedFunction) {
-	// 	let result = (oldFunc.args.length === newFunc.args.length);
-	// 	if (result) {
-	// 		oldFunc.args.forEach((element, i, args) => {
-	// 			if (!VariablesEqual(element, newFunc.args[i]))
-	// 				result = false;
-	// 		});
-	// 	}
-	// 	return result;
-	// }
-
-	// // function CompareObjects(oldObj: ParsedObject, newObj: ParsedObject, owner: ComponentChanges){
-
-	// // }
-
-	// function CompareComponents(oldComp: ParsedComponent, newComp: ParsedComponent, owner: ComponentChanges) {
-	// 	if (oldComp.name !== newComp.name)
-	// 		return
-	// 	let result = new ComponentChanges(oldComp.name);
-	// 	(<ParsedComponent>oldComp).props.forEach(prop => {
-	// 		let newChildProp = (<ParsedComponent>newComp).FindReference([prop.name || '']);
-	// 		if (newChildProp) {
-	// 			WriteChanges(prop, newChildProp, result);
-	// 		}
-	// 	});
-	// 	(<ParsedComponent>oldComp).calls.forEach(call => {
-	// 		let newChildProp = (<ParsedComponent>newComp).FindReference([call.name || '']);
-	// 		if (newChildProp) {
-	// 			WriteChanges(call, newChildProp, result);
-	// 		}
-	// 	});
-	// 	(<ParsedComponent>oldComp).components.forEach(comp => {
-	// 		let newChildComp = (<ParsedComponent>newComp).FindComponent([comp.name]);
-	// 		if (newChildComp) {
-	// 			CompareComponents(comp, newChildComp, owner);
-	// 		}
-	// 	})
-	// 	if (!result.IsEmpty()) {
-	// 		owner.components.push(result);
-	// 	}
-	// 	//WriteChanges(oldComp, newComp, result);
-	// 	// oldComp.components.forEach(element => {
-	// 	// 	if () {
-	// 	// 		WriteChanges(element, newComp, result);
-	// 	// 	}
-	// 	// 	else {
-	// 	// 		//TODO: if prop doesnt exist;
-	// 	// 	}
-	// 	// });
-	// }
-
-	// function WriteChanges(oldProp: ParsedBase, newProp: ParsedBase, owner: ComponentChanges) {
-	// 	if (!VariablesEqual(oldProp, newProp)) {
-	// 		if (newProp.kind === ParsedKind.Function)
-	// 			owner.calls.push(newProp);
-	// 		else
-	// 			owner.props.push(newProp);
-	// 	}
-	// 	else {
-	// 		switch (newProp.kind) {
-	// 			case ParsedKind.FormComponent: {
-	// 				CompareComponents(<ParsedComponent>oldProp, <ParsedComponent>newProp, owner)
-	// 				// (<ParsedComponent>oldProp).components.forEach(comp =>{
-	// 				// 	let newComp = (<ParsedComponent>newProp).FindComponent([comp.name]);
-	// 				// 	if (newComp){
-	// 				// 		CompareComponents(comp, newComp, owner);
-	// 				// 	}
-	// 				// })
-	// 				break;
-	// 			}
-	// 			case ParsedKind.Object: {
-	// 				(<ParsedObject>oldProp).props.forEach(prop => {
-	// 					let newChildProp = (<ParsedObject>newProp).FindReference([prop.name || '']);
-	// 					if (newChildProp) {
-	// 						WriteChanges(prop, newChildProp, owner);
-	// 					}
-	// 				})
-	// 				break;
-	// 			}
-	// 			default: {
-	// 				break;
-	// 			}
-	// 		}
-	// 	}
-	// }
-
-	// /**
-	//  * Find property in component, removes it from component and returns as result. Return undefined if prop not found
-	//  * @param component
-	//  */
-	// function SpliceProperty(component: ParsedComponent, propname: string): ParsedBase | undefined {
-	// 	for (let i = 0; i < component.props.length; i++) {
-	// 		let prop = component.props[i];
-	// 		if (prop.name === propname) {
-	// 			component.props.splice(i, 1);
-	// 			return prop;
-	// 		}
-	// 	}
-	// 	return undefined;
-	// }
-
-	// function MakeChanges(oldForm: ParsedForm, newForm: ParsedForm): ComponentChanges | undefined {
-	// 	let newProps = <ParsedComponent>SpliceProperty(newForm, 'Properties');//<ParsedComponent>newForm.FindReference(['Properties']);
-	// 	if (!newProps || newProps.kind !== ParsedKind.FormComponent)
-	// 		return;
-	// 	let result = new ComponentChanges(oldForm.name);
-	// 	oldForm.props.forEach(prop => {
-	// 		if (prop.name === 'Properties' && prop.kind === ParsedKind.FormComponent) {
-	// 			let comp = <ParsedComponent>prop;
-	// 			comp.components.forEach(element => {
-	// 				let newComp = newProps.FindComponent([element.name]);
-	// 				if (newComp) {
-	// 					WriteChanges(element, newComp, result);
-	// 				}
-	// 				else {
-	// 					//TODO: if comp doesnt exist;
-	// 				}
-	// 			});
-
-	// 		} else {
-	// 			let NewProp = SpliceProperty(newForm, <any>prop.name);
-	// 			if (NewProp) {
-	// 				WriteChanges(prop, NewProp, result);
-	// 			}
-	// 		}
-	// 	});
-	// 	return result
-	// }
-
-	// export function MakeFormUpdates(oldFormInfo: ParsedForm, newSource: bazCode.SourceInfo,
-	// 	errorlogger: (error: string) => void): ComponentChanges | undefined {
-	// 	try {
-	// 		let newForms = MakeForms(newSource, errorlogger);
-	// 		let newFormInfo: ParsedForm | undefined;
-	// 		for (let i = 0; i < newForms.length; i++) {
-	// 			if (newForms[i].name === oldFormInfo.name) {
-	// 				newFormInfo = newForms[i];
-	// 				break;
-	// 			}
-	// 		}
-	// 		if (newFormInfo) {
-	// 			let result = MakeChanges(oldFormInfo, newFormInfo);
-	// 			return result;
-	// 		}
-	// 	}
-	// 	catch (e) {
-	// 		errorlogger(e.stack);
-	// 	}
-	// 	return undefined;
-	// }
-
-	enum ChangeState {
-		none = 0,
-		deleted = 1,
-		modified = 2,
-		created = 3
-	}
-	export class BaseChange {
-		constructor(name: string, state?: ChangeState) {
-			this.name = name;
-			this.state = state || ChangeState.none;
-		}
-		state: ChangeState;
-		name: string;
-	}
-	export class PropChange extends BaseChange {
-		value: string;
-	}
-
-	export class CallChange extends BaseChange {
-		args: Array<PropChange> = [];
-
-		Changed(): boolean {
-			let result = false;
-			this.args.forEach(arg => {
-				if (arg.state !== ChangeState.none)
-					result = true;
-			})
+			if (!result && ErrorLog) {
+				ErrorLog(`FindOwner: can't find ${fullname.join('.')}`);
+			}
 			return result;
-		}
-	}
-	export class ObjectChange extends BaseChange {
-		props: Array<PropChange> = [];
-		calls: Array<CallChange> = [];
-		Empty(): boolean {
-			return this.props.length === 0 &&
-				this.calls.length === 0;
-		}
-	}
+		};
 
-	export class ComponentChange extends ObjectChange {
-		components: Array<ComponentChange> = [];
-		Empty(): boolean {
-			return this.props.length === 0 &&
-				this.calls.length === 0 &&
-				this.components.length === 0;
-		}
-	}
-
-	export class FormChange extends ComponentChange {
-
-	}
-
-	function SpliceElement(element: ParsedBase, arr: Array<ParsedBase>): ParsedBase | undefined {
-		let result: ParsedBase | undefined;
-		for (let i = 0; i < arr.length; i++) {
-			if (element.name === arr[i].name)
-				return arr.splice(i, 1)[0];
-		}
-		return result;
-	}
-
-	/**
-	 * Compare old and new props (if they exist)
-	 * @param oldProps Old properties
-	 * @param newProps New properties (they should be; if they don't exist, there is no sense to call this function)
-	 * @param owner Properties' owner (Object, which have them)
-	 */
-	function CompareProps(oldProps: Array<ParsedBase> | undefined, newProps: Array<ParsedBase>, owner: ComponentChange) {
-		if (oldProps) {
-			oldProps.forEach(element => {
-				let newElem = SpliceElement(element, newProps);
-				if (newElem) {
-					if (newElem.kind === element.kind) {
-						switch (element.kind) {
-							case ParsedKind.Value: {
-								if ((<ParsedValue>element).value !== (<ParsedValue>newElem).value) {
-									let newProp = new PropChange(element.name || '', ChangeState.modified);
-									newProp.value = (<ParsedValue>newElem).value;
-									owner.props.push(newProp);
-								};
-								break;
-							}
-							case ParsedKind.FormComponent: {
-								//i think this code will run only in form 'Properties' property;
-								let oldComp = <ParsedComponent>element;
-								let newComp = <ParsedComponent>newElem;
-								CompareComponents(oldComp.components, newComp.components, owner);
-							}
-						}
-					}
-					else
-						throw new Error('element kind was changed');
-					return;
-				}
-				//create deleting info if prop (or all props) doesn't exist
-				else {
-					let newProp = new PropChange(element.name || '', ChangeState.deleted)
-					owner.props.push(newProp);
-				}
+		GetFormNames(): string[] {
+			let result: string[] = [];
+			this.variables.forEach(variable => {
+				if (variable.kind === ParsedKind.Form)
+					result.push(variable.GetFullName().join('.'))
 			})
-		}
-		//We can (should?) be sure, that all rest props in array was created by last changes
-		newProps.forEach(elem => {
-			switch (elem.kind) {
-				case ParsedKind.Value: {
-					let newProp = new PropChange(elem.name || '', ChangeState.created);
-					newProp.value = (<ParsedValue>elem).value;
-					owner.props.push(newProp);
-				}
-			}
-		})
-	}
-
-	function CompareArgs(oldArgs: Array<ParsedBase> | undefined, newArgs: Array<ParsedBase>, owner: CallChange) {
-		let newLength = newArgs.length;
-		let oldLength = 0;
-		if (oldArgs) {
-			oldLength = oldArgs.length;
-			for (let i = 0; i < oldLength; i++) {
-				let oldArg = oldArgs[i];
-				if (i < newLength) {
-					let newArg = newArgs[i];
-					if (oldArg.kind === newArg.kind)
-						switch (oldArg.kind) {
-							case ParsedKind.Value: {
-								let arg = new PropChange(oldArg.name || '');
-								if ((<ParsedValue>oldArg).value !== (<ParsedValue>newArg).value) {
-									arg.state = ChangeState.modified;
-								}
-								arg.value = (<ParsedValue>newArg).value;
-								owner.args.push(arg);
-								break;
-							}
-						}
-					else
-						throw new Error(`CompareArgs: args have different kind`);
-				}
-				else {
-					switch (oldArg.kind) {
-						case ParsedKind.Value: {
-							let newArg = new PropChange(oldArg.name || '', ChangeState.deleted);
-							owner.args.push(newArg);
-							break;
-						}
-					}
-				}
-			}
-		}
-		for (let j = oldLength; j < newLength; j++) {
-			let newArg = newArgs[j];
-			switch (newArg.kind) {
-				case ParsedKind.Value: {
-					let arg = new PropChange(<any>newArg.name, ChangeState.created);
-					arg.value = (<ParsedValue>newArg).value;
-					owner.args.push(arg)
-				}
-			}
+			return result
 		}
 	}
 
-	function CompareCalls(oldCalls: Array<ParsedFunction> | undefined, newCalls: Array<ParsedFunction>, owner: ComponentChange) {
-		if (oldCalls) {
-			oldCalls.forEach(oldCall => {
-				let newCall = <ParsedFunction>SpliceElement(oldCall, newCalls);
-				if (newCall) {
-					let call = new CallChange(oldCall.name || '', ChangeState.modified);
-					CompareArgs(oldCall.args, newCall.args, call);
-					if (call.Changed()) {
-						owner.calls.push(call);
-					}
-				}
-			})
-		}
-		newCalls.forEach(newCall =>{
-			let call = new CallChange(newCall.name || '', ChangeState.created);
-			CompareArgs(undefined, newCall.args, call);
-			owner.calls.push(call);
-		})
-	}
-
-	function CompareComponents(oldComps: Array<ParsedComponent> | undefined, newComps: Array<ParsedComponent>, owner: ComponentChange) {
-		if (oldComps) {
-			oldComps.forEach(elem => {
-				let newElem = <ParsedComponent>SpliceElement(elem, newComps);
-				if (newElem) {
-					let newComp = new ComponentChange(elem.name);
-					CompareProps(elem.props, newElem.props, newComp);
-					CompareCalls(elem.calls, newElem.calls, newComp);
-					CompareComponents(elem.components, newElem.components, newComp);
-					if (!newComp.Empty()) {
-						newComp.state = ChangeState.modified;
-						owner.components.push(newComp);
-					}
-				}
-				else {
-					let newComp = new ComponentChange(elem.name || '', ChangeState.deleted)
-					owner.components.push(newComp);
-				}
-			})
-		}
-		//We should (can?) be sure, that all rest props in array was created by last changes
-		newComps.forEach(elem => {
-			let newComp = new ComponentChange(elem.name || '', ChangeState.created);
-			CompareComponents(undefined, elem.components, newComp);
-			CompareCalls(undefined, elem.calls, newComp);
-			CompareProps(undefined, elem.props, newComp);
-			if (!newComp.Empty()) {
-				owner.components.push(newComp);
-			}
-		})
-	}
-
-	export function CompareForms(oldForm: ParsedForm, newForm: ParsedForm,
-		errorLogger: (msg: string) => void): FormChange | undefined {
-
-		try {
-			if (oldForm.name !== newForm.name)
-				return undefined;
-			let result = new FormChange(newForm.name, ChangeState.modified);
-			CompareProps(oldForm.props, newForm.props, result);
-			CompareComponents(oldForm.components, newForm.components, result);
-			if (!result.Empty()) {
-				return result;
-			}
-		}
-		catch (e) {
-			errorLogger(e.stack)
+	function SpliceVariable(oldVar: bazCode.BaseInfo, newArr: Array<bazCode.BaseInfo>): bazCode.BaseInfo | undefined {
+		for (let i = 0; i < newArr.length; i++) {
+			if (newArr[i].name === oldVar[i].name)
+				return newArr.splice(i, 1)[0];
 		}
 		return undefined;
 	}
+
+	function CompareVariableArrays(oldArr: Array<bazCode.BaseInfo> | undefined, newArr: Array<bazCode.BaseInfo>, owner: ParsedBase) {
+		if (oldArr) {
+			oldArr.forEach(item => {
+				let newItem = SpliceVariable(item, newArr);
+				if (newItem) {
+					CompareVariables(item, newItem, owner);
+				}
+				else {
+					let newChange = new ParsedBase(item.name, ParsedKind.Unknown, ChangeState.Deleted);
+					owner.PushChange(newChange);
+				}
+			})
+		}
+		newArr.forEach(item => {
+			CompareVariables(undefined, item, owner);
+			//owner.PushChange(arg);
+		})
+	}
+
+	function CompareFunctions(oldObj: bazCode.ObjectInfo | undefined, newObj: bazCode.ObjectInfo, owner: ParsedBase): ParsedFunction | undefined {
+		if (oldObj && oldObj.kind !== InfoKind.FunctionInfo || newObj.kind !== InfoKind.FunctionInfo)
+			return;
+		let oldFunc = <bazCode.FunctionInfo>oldObj;
+		let newFunc = <bazCode.FunctionInfo>newObj;
+		let result = new ParsedFunction(newFunc.name, oldFunc ? ChangeState.None : ChangeState.Created);
+		let oldArgs = oldFunc ? oldFunc.args : undefined;
+		CompareVariableArrays(oldArgs, newFunc.args, result);
+		if (owner)
+			owner.PushChange(result);
+		else
+			return result;
+	}
+
+	function CompareForms(oldObj: bazCode.ObjectInfo | undefined, newObj: bazCode.ObjectInfo, owner: ParsedBase): ParsedForm | undefined {
+		let result: ParsedForm | undefined;
+		let state = oldObj ? ChangeState.None : ChangeState.Created;
+		if (newObj) {
+			result = new ParsedForm(newObj.name, state);
+			let oldInit = oldObj ? oldObj.initializer : undefined;
+			let newInit = newObj.initializer;
+			if (oldInit instanceof bazCode.FunctionInfo &&
+				newInit instanceof bazCode.FunctionInfo) {
+				//should be always
+				result.type = newInit.name;
+				let func = CompareFunctions(oldInit, newInit, <any>undefined);
+				if (func && func.Modified()) {
+					result.args = <any>func.args;
+				}
+			}
+			if (newObj.owner) {
+				result.owner = newObj.owner.GetFullName(true);
+			}
+		}
+		else if (oldObj) {
+			result = new ParsedForm(oldObj.name, ChangeState.Deleted);
+		}
+
+		if (result && result.Modified()) {
+			currentForms.PushChange(result);
+		}
+		return result;
+	}
+
+	function CompareComponents(oldObj: bazCode.ObjectInfo | undefined, newObj: bazCode.ObjectInfo, owner: ParsedBase) {
+		let init = newObj.initializer;
+		let state = oldObj ? ChangeState.None : ChangeState.Created;
+		if (init) {
+			let newComp = new ParsedComponent(newObj.name, state);
+			newComp.type = init.name;
+			newComp.owner = newObj.owner ? newObj.owner.GetFullName() : undefined;
+			if (init.owner) {
+				newComp.compOwner = init.owner.GetFullName();
+			}
+			let oldInit: bazCode.ObjectInfo | undefined;
+			if (oldObj)
+				oldInit = oldObj.initializer;
+			let newFunc = CompareFunctions(oldInit, init, <any>undefined);
+			if (newFunc && newFunc.Modified()) {
+				newComp.args = <any>newFunc.args;
+			}
+			currentForms.PushChange(newComp);
+		}
+		else {
+			//never
+			ErrorLog(`CompareComponents: object ${newObj.GetFullName().join('.')} has no initializer`);
+		}
+	}
+
+	function CompareObjects(oldObj: bazCode.ObjectInfo | undefined, newObj: bazCode.ObjectInfo, owner: ParsedBase)/*: ParsedBase*/ {
+
+		let oldObjKind = oldObj ? oldObj.kind : newObj.kind;
+		let state = oldObj ? ChangeState.None : ChangeState.Created;
+		let newParsedObject: ParsedObject | undefined;
+		if (oldObjKind === newObj.kind) {
+			if (newObj.initializer) {
+				let initName = newObj.initializer.GetFullName();
+				if (initName.length === 1) {
+					if (initName[0] === bzConsts.Constructors.NewForm) {
+						CompareForms(oldObj, newObj, owner);
+					}
+					else {
+						newParsedObject = new ParsedObject(newObj.name, state);
+						// owner.PushChange(newParsedObject);
+						currentForms.PushChange(newParsedObject);
+						//TODO:
+					}
+				}
+				else {
+					//check if last name is comp constructor's name
+					if (bzConsts.IsComponentConstructor(initName[initName.length - 1])) {
+						CompareComponents(oldObj, newObj, owner);
+					}
+				}
+			}
+			else {
+				newParsedObject = new ParsedObject(newObj.name, state);
+				// owner.PushChange(newParsedObject);
+				currentForms.PushChange(newParsedObject);
+			}
+			if (newParsedObject && newObj.owner) {
+				newParsedObject.owner = newObj.owner.GetFullName();
+			}
+		}
+		else {
+			//TODO: maybe never
+		}
+		// let newParsedObject = new ParsedObject(newObj.name);
+		// if (!oldObj){
+		// 	newParsedObject.state = ChangeState.Created;
+		// 	CompareVariableArrays(undefined, newObj.props, newParsedObject);
+		// }
+		// else {
+		// 	CompareVariableArrays(oldObj.props, newObj.props, newParsedObject);
+
+		// }
+	}
+
+	function CompareVariables(oldVar: bazCode.BaseInfo | undefined, newVar: bazCode.BaseInfo, owner: ParsedBase): ParsedBase | undefined {
+		if (newVar) {
+			if (!oldVar || oldVar.kind === newVar.kind) {
+				let newChange: ParsedBase | undefined;
+				switch (newVar.kind) {
+					case InfoKind.ObjectInfo: {
+						CompareObjects(<bazCode.ObjectInfo>oldVar, <bazCode.ObjectInfo>newVar, owner);
+						break;
+					}
+					case InfoKind.FunctionInfo: {
+						CompareFunctions(<bazCode.FunctionInfo>oldVar, <bazCode.FunctionInfo>newVar, owner);
+						break;
+					}
+					case InfoKind.ValueInfo: {
+						let newObj = <bazCode.ObjectInfo>newVar;
+						if (!oldVar) {
+							newChange = new ParsedValue(newObj.name, newObj.value, ChangeState.Created);
+						}
+						else {
+							let oldObj = <bazCode.ObjectInfo>oldVar;
+							if (oldObj.value !== newObj.value) {
+								newChange = new ParsedValue(newObj.name, newObj.value, ChangeState.Modified);
+							}
+						}
+						if (newChange && newObj.owner) {
+							newChange.owner = newObj.owner.GetFullName();
+						}
+						break;
+					}
+					case InfoKind.ReferenceInfo: {
+						let newObj = <bazCode.ObjectInfo>newVar;
+						if (!oldVar) {
+							newChange = new ParsedReference(newObj.name, ChangeState.Created);
+						}
+						else {
+							let oldObj = <bazCode.ObjectInfo>oldVar;
+							if (oldObj.refersTo.GetFullName() !== newObj.refersTo.GetFullName()) {
+								newChange = new ParsedReference(newObj.name, ChangeState.Modified);
+							}
+						}
+						if (newChange){
+							(<ParsedReference>newChange).ref = newObj.refersTo.GetFullName();
+						}
+						if (newChange && newObj.owner) {
+							newChange.owner = newObj.owner.GetFullName();
+						}
+
+						break;
+					}
+					default: {
+						ErrorLog(`CompareVariables: variable has incorrect kind: ${newVar.kind}`);
+					}
+				}
+				if (newChange && newChange.Modified())
+					owner.PushChange(newChange);
+				return newChange;
+			}
+			else {
+				//TODO:
+			}
+		}
+		else {
+
+		}
+	}
+
+	export function MakeChanges(oldSource: bazCode.SourceInfo | undefined, newSource: bazCode.SourceInfo, logerror: (msg: string) => void): Forms {
+		let result = new Forms('');
+		currentForms = result;
+		try {
+			oldSource = oldSource ? oldSource.Copy() : undefined;
+			newSource = newSource.Copy();
+			ErrorLog = logerror;
+			let oldVars = oldSource ? oldSource.variables : undefined;
+			CompareVariableArrays(oldVars, newSource.variables, result);
+		}
+		catch (e) {
+			logerror(e.stack);
+		}
+		currentForms = <any>undefined;
+		return result;
+	}
+
+	let currentForms: Forms = <any>undefined;
+
+	let ErrorLog: (msg: string) => void;
+
 }

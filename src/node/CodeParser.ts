@@ -10,7 +10,7 @@ export namespace bazCode {
 		missedNodes.push(msg);
 	}
 
-	function AddWarn(msg: string){
+	function AddWarn(msg: string) {
 		warnings.push(msg);
 	}
 
@@ -48,6 +48,9 @@ export namespace bazCode {
 		IsEmpty(): boolean {
 			return this.pos === 0 && this.end === 0;
 		}
+		Equals(range: InfoRange): boolean {
+			return range.pos === this.pos && range.end === this.end;
+		}
 	}
 
 	export class BaseInfo {
@@ -78,8 +81,8 @@ export namespace bazCode {
 		CopyParamsTo(newInfo: BaseInfo, circular: boolean) {
 			newInfo.range = this.range ? this.range.Copy() : new InfoRange();
 		}
-		NonCircularCopy(): BaseInfo {
-			let result = new BaseInfo(this.name, <any>undefined);
+		Copy(src: SourceInfo): BaseInfo {
+			let result = new BaseInfo(this.name, src);
 			this.CopyParamsTo(result, false);
 			return result;
 		}
@@ -147,127 +150,60 @@ export namespace bazCode {
 		/**range of full expression, which initializes this object */
 		initRange: InfoRange;
 		valueRange?: InfoRange;
-		props: ObjectInfo[] = [];
 
 
 		/**
 		 * returns full name of object like 'OwnerName.Name'
 		 */
-		GetFullName(): string[] {
-			let result: string[] = [];
-			if (this.owner) {
-				if (this.owner instanceof BaseInfo)
-					result = this.owner.GetFullName();
-				else //result should be string
-					result = (<any>this.owner).split('.');
+		GetFullName(removeRef?: boolean): string[] {
+			if (removeRef && this._ref){
+				return this._ref.GetFullName();
 			}
-			result.push(this.name);
-			return result;
+			else{
+				let result: string[] = [];
+				if (this.owner) {
+					if (this.owner instanceof BaseInfo)
+						result = this.owner.GetFullName();
+					else //result should be string
+						result = (<any>this.owner).split('.');
+				}
+				result.push(this.name);
+				return result;
+			}
 		}
 
-		CopyParamsTo(newInfo: ObjectInfo, circular: boolean) {
-			newInfo.initRange = this.initRange ? this.initRange.Copy() : circular ? new InfoRange() : <any>undefined;
+		CopyParamsTo(newInfo: ObjectInfo) {
+			newInfo.initRange = this.initRange ? this.initRange.Copy() : new InfoRange();
 			if (this.value) {
-				newInfo.value = this.value || <any>undefined;
+				newInfo.value = this.value;
 				//we are sure if value exists then its range exists too
 				newInfo.valueRange = (<InfoRange>this.valueRange).Copy();
 			}
-			if (circular) {
-				newInfo.owner = this.owner;
-				newInfo.refersTo = this.refersTo;
-				newInfo.initializer = this.initializer;
-				newInfo.props = this.props;
+			if (this.owner) {
+				newInfo.owner = newInfo.source.FindVariable(this.owner.GetFullName(), false);
 			}
-			else {
-				if (this.owner)
-					newInfo.owner = <any>this.owner.GetFullName();
-				if (this.refersTo)
-					newInfo.refersTo = <any>this.refersTo.GetFullName();
-				if (this.initializer)
-					newInfo.initializer = <any>this.initializer.GetFullName();
-				this.props.forEach(prop => {
-					newInfo.props.push(prop.NonCircularCopy());
-				})
-				newInfo.state = <any>undefined;
+			if (this.refersTo) {
+				newInfo.refersTo = newInfo.source.FindVariable(this.refersTo.GetFullName(), false);
 			}
-		}
-
-		NonCircularCopy(): ObjectInfo {
-			let newRange = this.range ? this.range.Copy() : <any>undefined;
-			let result = new ObjectInfo(this.name, <any>undefined, newRange, this.initialized);
-			this.CopyParamsTo(result, false);
-			return result;
-		}
-		FindFunction(names: string[]): FunctionInfo | undefined {
-			if (names.length > 0) {
-				let result: FunctionInfo | undefined;
-				for (let i = 0; i < this.props.length; i++) {
-					let prop = this.props[i];
-					if (prop.name === names[0]) {
-						names.splice(0, 1);
-						result = prop.FindFunction(names);
-						if (result) {
-							return result;
-						}
-					}
+			if (this.initializer) {
+				if (this.initializer.kind === InfoKind.FunctionInfo){
+					newInfo.initializer = this.initializer.Copy(newInfo.source);
 				}
-				// if no one prop was found
-				// maybe it's not good to create object if names count more than one
-				let newObj: ObjectInfo = names.length === 1 ? new FunctionInfo(names[0], this.source) : new ObjectInfo(names[0], this.source);
-				newObj.owner = this;
-				//this.source.AddNewItem(newObj);
-				this.props.push(newObj);
-				names.splice(0, 1);
-				result = newObj.FindFunction(names);
-				return result;
-			}
-			else {
-				if (this instanceof FunctionInfo)
-					return this;
 				else
-					throw new ParseError(`Object ${this.GetFullName().join('.')} is not function`);
+					newInfo.initializer = newInfo.source.FindVariable(this.initializer.GetFullName(), false);
 			}
 		}
-		FindVariable(names: string[], CreateIfNotFound: boolean): ObjectInfo | undefined {
-			if (names.length === 0) {
-				return this;
-			}
-			let result: ObjectInfo | undefined;
-			let newName = names;
-			for (let i = 0; i < this.props.length; i++) {
-				let prop = this.props[i];
-				if (prop.name === names[0]) {
-					names.splice(0, 1);
-					result = prop.FindVariable(newName, CreateIfNotFound)
-					if (result) {
-						return result;
-					}
-				}
-			}
-			// if no one prop was found
-			if (CreateIfNotFound) {
-				result = new ObjectInfo(names[0], this.source, this.range.Copy());
-				result.owner = this;
-				result.initRange = this.initRange;
-				this.source.AddNewItem(result);
-				this.props.push(result);
-				if (names.length > 1) {
-					names.splice(0, 1)
-					result = result.FindVariable(newName, CreateIfNotFound);
-				}
-			}
+		Copy(source: SourceInfo): ObjectInfo {
+			let result = new ObjectInfo(this.name, source);
+			this.CopyParamsTo(result);
 			return result;
-		}
-		AddProp(newProp: ObjectInfo) {
-			newProp.owner = this;
-			this.props.push(newProp);
 		}
 
 		AddNewItem(item: BaseInfo) {
 			if (!(item instanceof ObjectInfo))
 				throw new ParseError('item is not a variable');
 			if (this.state === InfoState.NeedInitialization) {
-				if (item.kind === InfoKind.ValueInfo){
+				if (item.kind === InfoKind.ValueInfo) {
 					this.value = item.value;
 					this.valueRange = item.valueRange;
 				}
@@ -283,38 +219,21 @@ export namespace bazCode {
 						break;
 					}
 				}
-				this.props.push(item);
 				this.source.AddNewItem(item);
-			}
-		}
-		ClearEmpty() {
-			let props = this.props;
-			for (let i = props.length - 1; i >= 0; i--) {
-				let prop = props[i];
-				if (prop.range)
-					prop.ClearEmpty();
-				else
-					props.splice(i, 1);
 			}
 		}
 	}
 
 	export class FunctionInfo extends ObjectInfo {
 		args: Array<ObjectInfo> = [];
-		public Copy(): FunctionInfo {
-			let result = new FunctionInfo(this.name, this.source);
-			result.owner = this.owner;
-			return result;
-		}
-		NonCircularCopy(): FunctionInfo {
-			let newRange = this.range ? this.range.Copy() : new InfoRange();
-			let result = new FunctionInfo(this.name, <any>undefined, newRange, this.initialized);
-			result.initRange = this.initRange ? this.initRange.Copy() : new InfoRange();
-			this.args.forEach(arg => {
-				result.args.push(arg.NonCircularCopy());
-			});
-			if (result.args.length === 0)
-				result.args = <any>undefined;
+		public Copy(src: SourceInfo): FunctionInfo {
+			let result = new FunctionInfo(this.name, src);
+			for (let i = 0; i < this.args.length; i ++){
+				result.args.push(this.args[i].Copy(src));
+			}
+			if (this.owner) {
+				result.owner = src.FindVariable(this.owner.GetFullName(), false);
+			}
 			return result;
 		}
 		kind: InfoKind = InfoKind.FunctionInfo;
@@ -342,38 +261,39 @@ export namespace bazCode {
 				this.AddVar(item);
 			}
 		}
+
+		NamesEqual(name1: string[], name2: string[]): boolean {
+			let result = name1.length === name2.length;
+			if (result) {
+				for (let i = 0; i < name1.length; i++) {
+					if (name1[i] !== name2[i])
+						return false;
+				}
+			}
+			return result;
+		}
 		/**
 		 * find variable by FULL name
 		 * @param fullName splitted full object name like ['OwnerName', 'Name']
 		 */
 		public FindVariable(fullName: string[], createIfNotFound: boolean): ObjectInfo {
-			let result: ObjectInfo | undefined;
-			// maybe it will be optional
 			for (let i = 0; i < this.variables.length; i++) {
 				let variable = this.variables[i];
-				if (variable.name === fullName[0]) {
-					if (fullName.length > 1) {
-						fullName.splice(0, 1);
-						result = variable.FindVariable(fullName, createIfNotFound);
-					}
-					else {
-						result = variable;
-					}
-					if (result)
-						return result;
+				if (this.NamesEqual(variable.GetFullName(), fullName)) {
+					return variable;
 				}
 			}
+			let result: ObjectInfo | undefined;
 			//if no one variable found
 			if (createIfNotFound) {
-				let newObj = new ObjectInfo(fullName[0], this.source, this.range.Copy());
-				this.variables.push(newObj);
+				let newObj = new ObjectInfo(fullName[fullName.length - 1], this.source, this.range.Copy());
 				if (fullName.length > 1) {
-					fullName.splice(0, 1);
-					result = newObj.FindVariable(fullName, createIfNotFound);
+					let owner = this.FindVariable(fullName.slice(0, fullName.length - 1), createIfNotFound);
+					newObj.range = owner.range.Copy();
+					newObj.owner = owner;
 				}
-				else {
-					result = newObj;
-				}
+				this.variables.push(newObj);
+				result = newObj;
 			}
 			if (!result)
 				throw new ParseError(`can't find variable ${fullName.join('.')} in SourceInfo.FindVariable`);
@@ -394,44 +314,64 @@ export namespace bazCode {
 		 * @param fullName splitted full name of function
 		 */
 		public FindFunction(fullName: string[]): FunctionInfo {
-			let result: FunctionInfo | undefined;
-			// maybe it will be optional
+
 			for (let i = 0; i < this.variables.length; i++) {
-				let variable = this.variables[i]
-				if (variable.name === fullName[0]) {
-					fullName.splice(0, 1);
-					result = variable.FindFunction(fullName);
-					if (result)
-						return result;
+				let variable = this.variables[i];
+				if (this.NamesEqual(variable.GetFullName(), fullName) && variable instanceof FunctionInfo) {
+					return variable.Copy(variable.source);
 				}
 			}
-			//if no one function found
-			let newObj: ObjectInfo = fullName.length === 1 ? new FunctionInfo(fullName[0], this.source) : new ObjectInfo(fullName[0], this.source);
-			this.variables.push(newObj);
-			fullName.splice(0, 1);
-			result = newObj.FindFunction(fullName);
+			let result: FunctionInfo | undefined;
+			//if no one variable found
+			let newFunc = new FunctionInfo(fullName[fullName.length - 1], this.source, this.range.Copy());
+			if (fullName.length > 1) {
+				let owner = this.FindVariable(fullName.slice(0, fullName.length - 1), true);
+				newFunc.range = owner.range.Copy();
+				newFunc.owner = owner;
+			}
+			//this.variables.push(newFunc);
+			result = newFunc;
 			if (!result)
 				throw new ParseError(`can't create function ${fullName.join('.')} in SourceInfo.FindFunction`);
 			return result;
 
-		}
+			// let result: FunctionInfo | undefined;
+			// // maybe it will be optional
+			// for (let i = 0; i < this.variables.length; i++) {
+			// 	let variable = this.variables[i]
+			// 	if (variable.name === fullName[0]) {
+			// 		fullName.splice(0, 1);
+			// 		result = variable.FindFunction(fullName);
+			// 		if (result)
+			// 			return result;
+			// 	}
+			// }
+			// //if no one function found
+			// let newObj: ObjectInfo = fullName.length === 1 ? new FunctionInfo(fullName[0], this.source) : new ObjectInfo(fullName[0], this.source);
+			// this.variables.push(newObj);
+			// fullName.splice(0, 1);
+			// result = newObj.FindFunction(fullName);
+			// if (!result)
+			// 	throw new ParseError(`can't create function ${fullName.join('.')} in SourceInfo.FindFunction`);
+			// return result;
 
-		NonCircularCopy(): SourceInfo {
+		}
+		Copy(): SourceInfo {
 			let result = new SourceInfo(this.name, this.range.Copy());
-			result.source = <any>undefined;
-			this.variables.forEach(element => {
-				result.variables.push(element.NonCircularCopy());
-			});
+			result.source = result;
+			for (let i = 0; i < this.variables.length; i ++){
+				result.variables.push(this.variables[i].Copy(result));
+			}
+			// this.variables.forEach(element => {
+			// 	result.variables.push(element.Copy(result));
+			// });
 			return result;
 		}
 		ClearEmpty() {
 			let vars = this.variables;
 			for (let i = vars.length - 1; i >= 0; i--) {
 				let elem = vars[i];
-				if (elem.range) {
-					elem.ClearEmpty();
-				}
-				else
+				if (!elem.range || elem.range.Equals(this.range))
 					vars.splice(i, 1);
 			}
 		}
@@ -662,7 +602,7 @@ export namespace bazCode {
 				info.refersTo = info.source.FindVariable(propName, true);
 			}
 		}
-		else{
+		else {
 			AddWarn(`parsePropertyAccessExpression: info isn't Object info in '${expr.getFullText()}'`);
 		}
 	}
@@ -892,18 +832,18 @@ export namespace bazCode {
 		if (comp.initializer && bzConsts.IsComponentConstructor(comp.initializer.name))
 			lIndex = GetLayoutIndex(propName);
 		if (lIndex === -1) {
-			let prop = comp.FindVariable([propName], false);
+			let prop = comp.source.FindVariable([propName], false);
 			if (prop) {
 				let resultExists = false;
-				if (!(prop instanceof FunctionInfo)){
-					if (prop.valueRange){
+				if (!(prop instanceof FunctionInfo)) {
+					if (prop.valueRange) {
 						result.pos = prop.valueRange.pos;
 						result.end = prop.valueRange.end;
 						result.newText = ' ' + newValue;
 						resultExists = true;
 					}
 				}
-				if (! resultExists){
+				if (!resultExists) {
 					if (prop.initRange) {
 						result.pos = prop.initRange.pos;
 						result.end = prop.initRange.end;
@@ -929,7 +869,7 @@ export namespace bazCode {
 			}
 		}
 		else {
-			let layout = comp.FindFunction([bzConsts.LayoutFuncName]);
+			let layout = comp.source.FindFunction([bzConsts.LayoutFuncName]);
 			if (layout && !layout.range.IsEmpty()) {
 				let argRange = layout.args[lIndex].range;
 				result.pos = argRange.pos;

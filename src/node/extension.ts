@@ -220,7 +220,11 @@ function StringifyCircular(obj): string {
 		if ((typeof value === 'object') && (value !== null)) {
 			if (cache.indexOf(value) !== -1) {
 				// Circular reference found, discard key
-				return;
+				let additionalInfo = '';
+				if (value instanceof bazCode.ObjectInfo){
+					additionalInfo = value.GetFullName().join('.');
+				}
+				return `circular${additionalInfo? ': ' + additionalInfo: ''}`;
 			}
 			// Store value in our collection
 			cache.push(value);
@@ -484,26 +488,23 @@ function openFormEditor() {
 		}
 		let result = bazCode.parseSource(src, logSessionError);
 		parsedSources.SetSource(result);
-		let forms = bazForms.MakeForms(result, logSessionError);
-		let formNames: string[] = [];
-		for (let i = 0; i < forms.length; i++) {
-			formNames.push(forms[i].owner + '.' + forms[i].name);
-		}
+		let forms = bazForms.MakeChanges(undefined, result, logSessionError);
+		let formNames: string[] = forms.GetFormNames();
 		if (formNames.length > 0) {
 			vscode.window.showQuickPick(formNames, {
 				placeHolder: 'Выберите имя формы'
 			}).then((value: string) => {
 				if (!value)
 					return;
-				let index = formNames.indexOf(value);
-				if (index >= 0) {
-					let formInfo = forms[index];
-					if (formInfo) {
-						currentFormName = value;
-						currentFileName = fileName;
-						RunFormEditor(formInfo);
-					}
-				}
+				// let index = formNames.indexOf(value);
+				// if (index >= 0) {
+				// 	let formInfo = forms[index];
+				// 	if (formInfo) {
+				// 		currentFormName = value;
+				// 		currentFileName = fileName;
+				// 		RunFormEditor(formInfo);
+				// 	}
+				// }
 			})
 		}
 		else
@@ -511,7 +512,7 @@ function openFormEditor() {
 		if (lastSessionLogging) {
 			try {
 				fs.writeFileSync(logDir + 'forms.out', JSON.stringify(forms));
-				fs.writeFileSync(logDir + 'result.out', JSON.stringify(result.NonCircularCopy()));
+				fs.writeFileSync(logDir + 'result.out', StringifyCircular(result.Copy()));
 				fs.writeFileSync(logDir + 'src.out', StringifyCircular(src.statements));
 			}
 			catch (e) {/*ignore any error*/ }
